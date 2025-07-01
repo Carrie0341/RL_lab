@@ -289,7 +289,7 @@ class FactoryRGBDCameraEnvCfg(FactoryEnvCfg):
         width=CAMERA_WIDTH,
         height=CAMERA_HEIGHT,
     )
-    write_image_to_file = False
+    write_image_to_file = True
 
     # spaces
     observation_space = [CAMERA_HEIGHT, CAMERA_WIDTH, 4]  # [height, width, channels] for RGBD

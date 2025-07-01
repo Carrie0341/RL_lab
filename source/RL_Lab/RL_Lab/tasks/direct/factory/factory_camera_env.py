@@ -85,30 +85,30 @@ class FactoryCameraEnv(FactoryEnv):
             # Allow dynamic selection of the image index to save
             import random
             # image_index = 50
-            # image_index = random.randint(0, camera_data.shape[0] - 1)
-            for image_index in range(camera_data.shape[0]):
-                img_data = camera_data[image_index].detach().cpu().numpy()
-                if self.is_rgbd_task:
-                    # Save RGB and Depth images separately
-                    rgb_img_data = (rgb_data[image_index].detach().cpu().numpy() * rgb_std[image_index].cpu().numpy() + rgb_mean[image_index].cpu().numpy())
-                    rgb_img_data = np.clip(rgb_img_data * 255, 0, 255).astype(np.uint8)
-                    rgb_img = Image.fromarray(rgb_img_data)
-                    rgb_img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_rgb.png")
+            image_index = random.randint(0, camera_data.shape[0] - 1)
+            # for image_index in range(camera_data.shape[0]):
+            img_data = camera_data[image_index].detach().cpu().numpy()
+            if self.is_rgbd_task:
+                # Save RGB and Depth images separately
+                rgb_img_data = (rgb_data[image_index].detach().cpu().numpy() * rgb_std[image_index].cpu().numpy() + rgb_mean[image_index].cpu().numpy())
+                rgb_img_data = np.clip(rgb_img_data * 255, 0, 255).astype(np.uint8)
+                rgb_img = Image.fromarray(rgb_img_data)
+                rgb_img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_rgb.png")
 
-                    # depth_img_data = (depth_data[image_index].detach().cpu().numpy() * 255).astype(np.uint8).squeeze()
-                    # depth_img = Image.fromarray(depth_img_data, mode="L")
-                    # depth_img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_depth.png")
-                elif data_type == "rgb":
-                    # Convert normalized RGB image back to [0, 255] range
-                    img_data = (img_data * std[image_index].cpu().numpy() + mean[image_index].cpu().numpy())
-                    img_data = np.clip(img_data * 255, 0, 255).astype(np.uint8)
-                    img = Image.fromarray(img_data)
-                    img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_rgb.png")
-                else:  # depth
-                    # Convert depth image to grayscale
-                    img_data = (img_data * 255).astype(np.uint8).squeeze()
-                    img = Image.fromarray(img_data, mode="L")
-                    img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_depth.png")
+                # depth_img_data = (depth_data[image_index].detach().cpu().numpy() * 255).astype(np.uint8).squeeze()
+                # depth_img = Image.fromarray(depth_img_data, mode="L")
+                # depth_img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_depth.png")
+            elif data_type == "rgb":
+                # Convert normalized RGB image back to [0, 255] range
+                img_data = (img_data * std[image_index].cpu().numpy() + mean[image_index].cpu().numpy())
+                img_data = np.clip(img_data * 255, 0, 255).astype(np.uint8)
+                img = Image.fromarray(img_data)
+                img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_rgb.png")
+            else:  # depth
+                # Convert depth image to grayscale
+                img_data = (img_data * 255).astype(np.uint8).squeeze()
+                img = Image.fromarray(img_data, mode="L")
+                img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_depth.png")
 
         # 獲取critic的狀態向量（與原始FactoryEnv相同）
         noisy_fixed_pos = self.fixed_pos_obs_frame + self.init_fixed_pos_obs_noise
