@@ -2,7 +2,7 @@
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
-
+import isaacsim.core.utils.torch as torch_utils
 import isaaclab.sim as sim_utils
 from isaaclab.actuators.actuator_cfg import ImplicitActuatorCfg
 from isaaclab.assets import ArticulationCfg
@@ -13,12 +13,34 @@ from isaaclab.sim.spawners.materials.physics_materials_cfg import RigidBodyMater
 from isaaclab.utils import configclass
 from isaaclab.sensors import TiledCamera, TiledCameraCfg
 from isaaclab.envs import ViewerCfg
+from isaaclab.utils.math import quat_from_euler_xyz
 
 from .factory_tasks_cfg import ASSET_DIR, FactoryTask, PegInsert
+import torch
+import math
+
+CAMERA_WIDTH = 256
+CAMERA_HEIGHT = 256
+CAMERA_POS = (0.4, 0.9, 1.4)  # x正左 y正後 z正上
+# CAMERA_ROT = (0.9239, 0.0, 0.3827, 0.0)
+# CAMERA_ROT = (0.9239, 0.0, -0.3827, 0.0)
+
+
+# CAMERA_ROT = (0.9238795, 0.3826834, 0.0, 0.0)
+roll = torch.tensor(0)  # X軸旋轉45度
+pitch = torch.tensor(math.pi / 3.5)  # Y軸旋轉45度
+yaw = torch.tensor(math.pi / 2)
+camera_quat = quat_from_euler_xyz(roll, pitch, -yaw)
+CAMERA_ROT = tuple(camera_quat.tolist())  # 轉換為元組格式 (w, x, y, z)
+
+
+CAMERA_EYE = (1.0, 1.0, 1.0)  # Viewer eye position
+num_envs = 16
 
 OBS_CAMERA_CFG = {
-    "rgb": [128, 128, 3],  # [height, width, channels]
-    "depth": [128, 128, 1]  # [height, width, channels]
+    "rgb": [CAMERA_HEIGHT, CAMERA_WIDTH, 3],  # [height, width, channels]
+    "rgbd": [CAMERA_HEIGHT, CAMERA_WIDTH, 4],  # [height, width, channels]
+    "depth": [CAMERA_HEIGHT, CAMERA_WIDTH, 1]  # [height, width, channels]
 }
 OBS_DIM_CFG = {
     "fingertip_pos": 3,
@@ -207,24 +229,24 @@ class FactoryRGBCameraEnvCfg(FactoryEnvCfg):
     # camera
     tiled_camera: TiledCameraCfg = TiledCameraCfg(
         prim_path="/World/envs/env_.*/Camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.5), rot=(0.7071, 0.0, 0.0, 0.7071), convention="world"),
+        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS, rot=CAMERA_ROT, convention="world"),
         data_types=["rgb"],
         spawn=sim_utils.PinholeCameraCfg(
             focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
         ),
-        width=128,
-        height=128,
+        width=CAMERA_WIDTH,
+        height=CAMERA_HEIGHT,
     )
     write_image_to_file = False
 
     # spaces - 與 CartpoleRGBCameraEnvCfg 保持一致的格式
-    observation_space = [128, 128, 3]  # [height, width, channels]
+    observation_space = [CAMERA_HEIGHT, CAMERA_WIDTH, 3]  # [height, width, channels]
 
     # change viewer settings
-    viewer = ViewerCfg(eye=(1.0, 1.0, 1.0))
+    viewer = ViewerCfg(eye=CAMERA_EYE)
 
     # reduce number of environments for camera-based training
-    scene = InteractiveSceneCfg(num_envs=64, env_spacing=2.0)
+    scene = InteractiveSceneCfg(num_envs=num_envs, env_spacing=2.0)
 
     # Use PegInsert task configuration by default
     task = PegInsert()
@@ -237,14 +259,46 @@ class FactoryDepthCameraEnvCfg(FactoryRGBCameraEnvCfg):
     # camera
     tiled_camera: TiledCameraCfg = TiledCameraCfg(
         prim_path="/World/envs/env_.*/Camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.5), rot=(0.7071, 0.0, 0.0, 0.7071), convention="world"),
+        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS, rot=CAMERA_ROT, convention="world"),
         data_types=["depth"],
         spawn=sim_utils.PinholeCameraCfg(
             focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
         ),
-        width=128,
-        height=128,
+        width=CAMERA_WIDTH,
+        height=CAMERA_HEIGHT,
     )
 
     # spaces
-    observation_space = [128, 128, 1]  # [height, width, channels]
+    observation_space = [CAMERA_HEIGHT, CAMERA_WIDTH, 1]  # [height, width, channels]
+
+# Add a new task configuration for RGBD camera input
+
+
+@configclass
+class FactoryRGBDCameraEnvCfg(FactoryEnvCfg):
+    """Configuration for Factory environment with RGBD camera."""
+    task_name = "peg_insert_rgbd_camera"
+    # camera
+    tiled_camera: TiledCameraCfg = TiledCameraCfg(
+        prim_path="/World/envs/env_.*/Camera",
+        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS, rot=CAMERA_ROT, convention="world"),
+        data_types=["rgb", "depth"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
+        ),
+        width=CAMERA_WIDTH,
+        height=CAMERA_HEIGHT,
+    )
+    write_image_to_file = False
+
+    # spaces
+    observation_space = [CAMERA_HEIGHT, CAMERA_WIDTH, 4]  # [height, width, channels] for RGBD
+
+    # change viewer settings
+    viewer = ViewerCfg(eye=CAMERA_EYE)
+
+    # reduce number of environments for camera-based training
+    scene = InteractiveSceneCfg(num_envs=num_envs, env_spacing=2.0)
+
+    # Use PegInsert task configuration by default
+    task = PegInsert()

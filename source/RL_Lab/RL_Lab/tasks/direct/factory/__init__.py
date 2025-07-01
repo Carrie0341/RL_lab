@@ -12,7 +12,7 @@ import gymnasium as gym
 from . import agents
 from .factory_camera_env import FactoryCameraEnv
 from .factory_env import FactoryEnv
-from .factory_env_cfg import FactoryEnvCfg, FactoryTaskPegInsertCfg
+from .factory_env_cfg import FactoryEnvCfg, FactoryTaskPegInsertCfg, FactoryRGBDCameraEnvCfg
 from .factory_tasks_cfg import PegInsert
 
 ##
@@ -31,7 +31,6 @@ gym.register(
     },
 )
 
-# Register camera-based environments
 gym.register(
     id="Custom-Factory-PegInsert-RGB-Camera-Direct-v0",
     entry_point=f"{__name__}.factory_camera_env:FactoryCameraEnv",
@@ -51,5 +50,18 @@ gym.register(
         "env_cfg_entry_point": f"{__name__}.factory_camera_env:FactoryDepthCameraEnvCfg",
         "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_camera_ppo_cfg.yaml",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_camera_ppo_cfg.yaml",
+    },
+)
+
+# Register RGBD camera-based environment
+gym.register(
+    id="Custom-Factory-PegInsert-RGBD-Camera-Direct-v0",
+    entry_point=f"{__name__}.factory_camera_env:FactoryCameraEnv",
+    disable_env_checker=True,
+    kwargs={
+        "env_cfg_entry_point": f"{__name__}.factory_env_cfg:FactoryRGBDCameraEnvCfg",
+        # "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_rgbd_camera_ppo_cfg.yaml",
+        "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_camera_ppo_cfg.yaml",
+        "skrl_cfg_entry_point": f"{agents.__name__}:skrl_rgbd_camera_ppo_cfg.yaml",
     },
 )

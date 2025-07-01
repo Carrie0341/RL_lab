@@ -17,7 +17,7 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 from isaaclab.utils.math import axis_angle_from_quat
 
 from . import factory_control as fc
-from .factory_env_cfg import OBS_DIM_CFG, STATE_DIM_CFG, FactoryEnvCfg
+from .factory_env_cfg import OBS_DIM_CFG, STATE_DIM_CFG, OBS_CAMERA_CFG, FactoryEnvCfg
 
 
 class FactoryEnv(DirectRLEnv):
@@ -27,13 +27,14 @@ class FactoryEnv(DirectRLEnv):
         # Update number of obs/states
         if cfg.task_name == "peg_insert":
             cfg.observation_space = sum([OBS_DIM_CFG[obs] for obs in cfg.obs_order])
-            cfg.state_space = sum([STATE_DIM_CFG[state] for state in cfg.state_order])
-            cfg.observation_space += cfg.action_space
-            cfg.state_space += cfg.action_space
         if cfg.task_name == "peg_insert_rgb_camera":
-            cfg.observation_space = [128, 128, 3]
-            cfg.state_space = sum([STATE_DIM_CFG[state] for state in cfg.state_order])
-            cfg.state_space += cfg.action_space
+            cfg.observation_space = OBS_CAMERA_CFG['rgb']
+        elif cfg.task_name == "peg_insert_depth_camera":
+            cfg.observation_space = OBS_CAMERA_CFG['depth']
+        elif cfg.task_name == "peg_insert_rgbd_camera":
+            cfg.observation_space = OBS_CAMERA_CFG['rgbd']
+        cfg.state_space = sum([STATE_DIM_CFG[state] for state in cfg.state_order])
+        cfg.state_space += cfg.action_space
 
         self.cfg_task = cfg.task
 
@@ -259,7 +260,7 @@ class FactoryEnv(DirectRLEnv):
 
     def _get_observations(self):
         """Get actor/critic inputs using asymmetric critic."""
-        print("[!!!Debug] FactoryEnv._get_observations()")
+        # print("[!!!Debug] FactoryEnv._get_observations()")
         noisy_fixed_pos = self.fixed_pos_obs_frame + self.init_fixed_pos_obs_noise
 
         prev_actions = self.actions.clone()
