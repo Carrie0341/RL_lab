@@ -76,7 +76,7 @@ class FactoryCameraEnv(FactoryEnv):
             raise ValueError(f"Unsupported camera data type: {data_type}")
 
         # 可選：保存圖像到文件進行調試
-        if (self.cfg.write_image_to_file or True) and self.episode_length_buf[0] % 100 == 0:
+        if self.cfg.write_image_to_file and self.episode_length_buf[0] % 100 == 0:
             import os
             import numpy as np
             from PIL import Image
@@ -136,4 +136,4 @@ class FactoryCameraEnv(FactoryEnv):
 
         # print("[Debug] Camera data shape:", camera_data.shape)
         # 返回相機數據給policy，狀態向量給critic
-        return {"policy": camera_data, "critic": state_tensors
+        return {"policy": camera_data, "critic": state_tensors}

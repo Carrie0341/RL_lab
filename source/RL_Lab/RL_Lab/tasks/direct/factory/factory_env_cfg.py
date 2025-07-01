@@ -35,7 +35,7 @@ CAMERA_ROT = tuple(camera_quat.tolist())  # 轉換為元組格式 (w, x, y, z)
 
 
 CAMERA_EYE = (1.0, 1.0, 1.0)  # Viewer eye position
-num_envs = 16
+num_envs = 12
 
 OBS_CAMERA_CFG = {
     "rgb": [CAMERA_HEIGHT, CAMERA_WIDTH, 3],  # [height, width, channels]
