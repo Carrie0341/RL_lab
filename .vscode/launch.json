@@ -1,0 +1,51 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: List Environments",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/list_envs.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: Zero Agent",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/zero_agent.py",
+            "args": ["--task=RlLab-v0"],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: Random Agent",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/scripts/random_agent.py",
+            "args": ["--task=RlLab-v0"],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        }
+    ]
+}
