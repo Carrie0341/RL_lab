@@ -12,7 +12,7 @@ from isaaclab.sim import PhysxCfg, SimulationCfg
 from isaaclab.sim.spawners.materials.physics_materials_cfg import RigidBodyMaterialCfg
 from isaaclab.utils import configclass
 
-from .factory_tasks_cfg import ASSET_DIR, FactoryTask, GearMesh, NutThread, PegInsert
+from .factory_tasks_cfg import ASSET_DIR, FactoryTask, PegInsert
 
 OBS_DIM_CFG = {
     "fingertip_pos": 3,
@@ -192,17 +192,3 @@ class FactoryTaskPegInsertCfg(FactoryEnvCfg):
     task_name = "peg_insert"
     task = PegInsert()
     episode_length_s = 10.0
-
-
-@configclass
-class FactoryTaskGearMeshCfg(FactoryEnvCfg):
-    task_name = "gear_mesh"
-    task = GearMesh()
-    episode_length_s = 20.0
-
-
-@configclass
-class FactoryTaskNutThreadCfg(FactoryEnvCfg):
-    task_name = "nut_thread"
-    task = NutThread()
-    episode_length_s = 30.0
