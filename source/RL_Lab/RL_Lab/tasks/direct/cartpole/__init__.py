@@ -4,51 +4,47 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """
-Factory insertion environment.
+Cartpole balancing environment.
 """
 
 import gymnasium as gym
 
 from . import agents
-from .factory_camera_env import FactoryCameraEnv
-from .factory_env import FactoryEnv
-from .factory_env_cfg import FactoryEnvCfg, FactoryTaskPegInsertCfg
-from .factory_tasks_cfg import PegInsert
 
 ##
 # Register Gym environments.
 ##
 
 gym.register(
-    id="Custom-Factory-PegInsert-Direct-v0",
-    entry_point=f"{__name__}.factory_env:FactoryEnv",
+    id="Custom-Cartpole-Direct-v0",
+    entry_point=f"{__name__}.cartpole_env:CartpoleEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.factory_env_cfg:FactoryTaskPegInsertCfg",
+        "env_cfg_entry_point": f"{__name__}.cartpole_env:CartpoleEnvCfg",
         "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_ppo_cfg.yaml",
-        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:FactoryPPORunnerCfg",
+        "rsl_rl_cfg_entry_point": f"{agents.__name__}.rsl_rl_ppo_cfg:CartpolePPORunnerCfg",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_ppo_cfg.yaml",
+        "sb3_cfg_entry_point": f"{agents.__name__}:sb3_ppo_cfg.yaml",
     },
 )
 
-# Register camera-based environments
 gym.register(
-    id="Custom-Factory-PegInsert-RGB-Camera-Direct-v0",
-    entry_point=f"{__name__}.factory_camera_env:FactoryCameraEnv",
+    id="Custom-Cartpole-RGB-Camera-Direct-v0",
+    entry_point=f"{__name__}.cartpole_camera_env:CartpoleCameraEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.factory_camera_env:FactoryRGBCameraEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.cartpole_camera_env:CartpoleRGBCameraEnvCfg",
         "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_camera_ppo_cfg.yaml",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_camera_ppo_cfg.yaml",
     },
 )
 
 gym.register(
-    id="Custom-Factory-PegInsert-Depth-Camera-Direct-v0",
-    entry_point=f"{__name__}.factory_camera_env:FactoryCameraEnv",
+    id="Custom-Cartpole-Depth-Camera-Direct-v0",
+    entry_point=f"{__name__}.cartpole_camera_env:CartpoleCameraEnv",
     disable_env_checker=True,
     kwargs={
-        "env_cfg_entry_point": f"{__name__}.factory_camera_env:FactoryDepthCameraEnvCfg",
+        "env_cfg_entry_point": f"{__name__}.cartpole_camera_env:CartpoleDepthCameraEnvCfg",
         "rl_games_cfg_entry_point": f"{agents.__name__}:rl_games_camera_ppo_cfg.yaml",
         "skrl_cfg_entry_point": f"{agents.__name__}:skrl_camera_ppo_cfg.yaml",
     },

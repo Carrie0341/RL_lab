@@ -1,0 +1,1 @@
+python scripts/list_envs.py

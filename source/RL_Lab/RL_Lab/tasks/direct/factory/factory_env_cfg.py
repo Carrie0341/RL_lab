@@ -11,9 +11,15 @@ from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim import PhysxCfg, SimulationCfg
 from isaaclab.sim.spawners.materials.physics_materials_cfg import RigidBodyMaterialCfg
 from isaaclab.utils import configclass
+from isaaclab.sensors import TiledCamera, TiledCameraCfg
+from isaaclab.envs import ViewerCfg
 
 from .factory_tasks_cfg import ASSET_DIR, FactoryTask, PegInsert
 
+OBS_CAMERA_CFG = {
+    "rgb": [128, 128, 3],  # [height, width, channels]
+    "depth": [128, 128, 1]  # [height, width, channels]
+}
 OBS_DIM_CFG = {
     "fingertip_pos": 3,
     "fingertip_pos_rel_fixed": 3,
@@ -192,3 +198,53 @@ class FactoryTaskPegInsertCfg(FactoryEnvCfg):
     task_name = "peg_insert"
     task = PegInsert()
     episode_length_s = 10.0
+
+
+@configclass
+class FactoryRGBCameraEnvCfg(FactoryEnvCfg):
+    """Configuration for Factory environment with RGB camera."""
+    task_name = "peg_insert_rgb_camera"
+    # camera
+    tiled_camera: TiledCameraCfg = TiledCameraCfg(
+        prim_path="/World/envs/env_.*/Camera",
+        offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.5), rot=(0.7071, 0.0, 0.0, 0.7071), convention="world"),
+        data_types=["rgb"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
+        ),
+        width=128,
+        height=128,
+    )
+    write_image_to_file = False
+
+    # spaces - 與 CartpoleRGBCameraEnvCfg 保持一致的格式
+    observation_space = [128, 128, 3]  # [height, width, channels]
+
+    # change viewer settings
+    viewer = ViewerCfg(eye=(1.0, 1.0, 1.0))
+
+    # reduce number of environments for camera-based training
+    scene = InteractiveSceneCfg(num_envs=64, env_spacing=2.0)
+
+    # Use PegInsert task configuration by default
+    task = PegInsert()
+
+
+@configclass
+class FactoryDepthCameraEnvCfg(FactoryRGBCameraEnvCfg):
+    """Configuration for Factory environment with depth camera."""
+    task_name = "peg_insert_depth_camera"
+    # camera
+    tiled_camera: TiledCameraCfg = TiledCameraCfg(
+        prim_path="/World/envs/env_.*/Camera",
+        offset=TiledCameraCfg.OffsetCfg(pos=(0.0, 0.0, 0.5), rot=(0.7071, 0.0, 0.0, 0.7071), convention="world"),
+        data_types=["depth"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
+        ),
+        width=128,
+        height=128,
+    )
+
+    # spaces
+    observation_space = [128, 128, 1]  # [height, width, channels]

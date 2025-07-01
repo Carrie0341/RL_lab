@@ -25,10 +25,16 @@ class FactoryEnv(DirectRLEnv):
 
     def __init__(self, cfg: FactoryEnvCfg, render_mode: str | None = None, **kwargs):
         # Update number of obs/states
-        cfg.observation_space = sum([OBS_DIM_CFG[obs] for obs in cfg.obs_order])
-        cfg.state_space = sum([STATE_DIM_CFG[state] for state in cfg.state_order])
-        cfg.observation_space += cfg.action_space
-        cfg.state_space += cfg.action_space
+        if cfg.task_name == "peg_insert":
+            cfg.observation_space = sum([OBS_DIM_CFG[obs] for obs in cfg.obs_order])
+            cfg.state_space = sum([STATE_DIM_CFG[state] for state in cfg.state_order])
+            cfg.observation_space += cfg.action_space
+            cfg.state_space += cfg.action_space
+        if cfg.task_name == "peg_insert_rgb_camera":
+            cfg.observation_space = [128, 128, 3]
+            cfg.state_space = sum([STATE_DIM_CFG[state] for state in cfg.state_order])
+            cfg.state_space += cfg.action_space
+
         self.cfg_task = cfg.task
 
         super().__init__(cfg, render_mode, **kwargs)
@@ -253,6 +259,7 @@ class FactoryEnv(DirectRLEnv):
 
     def _get_observations(self):
         """Get actor/critic inputs using asymmetric critic."""
+        print("[!!!Debug] FactoryEnv._get_observations()")
         noisy_fixed_pos = self.fixed_pos_obs_frame + self.init_fixed_pos_obs_noise
 
         prev_actions = self.actions.clone()
