@@ -19,23 +19,23 @@ from .factory_tasks_cfg import ASSET_DIR, FactoryTask, PegInsert
 import torch
 import math
 
-CAMERA_WIDTH = 256
-CAMERA_HEIGHT = 256
-CAMERA_POS = (0.4, 0.9, 1.4)  # x正左 y正後 z正上
+CAMERA_WIDTH = 256 + 128
+CAMERA_HEIGHT = 256 + 128
+CAMERA_POS = (0.4, .8, .6)  # x正左 y正後 z正上
 # CAMERA_ROT = (0.9239, 0.0, 0.3827, 0.0)
 # CAMERA_ROT = (0.9239, 0.0, -0.3827, 0.0)
 
 
 # CAMERA_ROT = (0.9238795, 0.3826834, 0.0, 0.0)
 roll = torch.tensor(0)  # X軸旋轉45度
-pitch = torch.tensor(math.pi / 3.5)  # Y軸旋轉45度
+pitch = torch.tensor(math.pi / 8)
 yaw = torch.tensor(math.pi / 2)
 camera_quat = quat_from_euler_xyz(roll, pitch, -yaw)
 CAMERA_ROT = tuple(camera_quat.tolist())  # 轉換為元組格式 (w, x, y, z)
 
 
 CAMERA_EYE = (1.0, 1.0, 1.0)  # Viewer eye position
-num_envs = 12
+num_envs = 16
 
 OBS_CAMERA_CFG = {
     "rgb": [CAMERA_HEIGHT, CAMERA_WIDTH, 3],  # [height, width, channels]

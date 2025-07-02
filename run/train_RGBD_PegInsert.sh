@@ -11,4 +11,4 @@ export DISPLAY=:0
 
 # Run the training script with correct arguments
 # Removed the unrecognized --sim_device argument
-python scripts/rl_games/train.py --task=Custom-Factory-PegInsert-RGBD-Camera-Direct-v0 --enable_cameras --headless
+python scripts/rl_games/train.py --task=Custom-Factory-PegInsert-RGBD-Camera-Direct-v0 --enable_cameras 
