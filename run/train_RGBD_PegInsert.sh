@@ -1,22 +1,18 @@
 #!/bin/bash
 
-# 检测操作系统类型
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    # Linux系统执行
+if [ -f /etc/os-release ] || [ -d /proc ]; then
     echo "Running on Linux system"
     
-    # 启动虚拟X服务器（如果尚未运行）
+    # 啟動虛擬X Server
     if ! pgrep -x "Xvfb" > /dev/null; then
         Xvfb :0 -screen 0 1280x1024x24 &
-        sleep 2  # 给它启动的时间
+        sleep 2
     fi
-    
-    # 设置显示变量
     export DISPLAY=:0
     
-    # 加载Isaac Sim conda环境
+    # Isaac Sim conda Env
     source ~/isaacsim/setup_conda_env.sh    
-    # 使用headless参数运行训练脚本
+    # 使用headless模式訓練
     python scripts/rl_games/train.py --task=Custom-Factory-PegInsert-RGBD-Camera-Direct-v0 --enable_cameras --headless
     
 else
