@@ -13,7 +13,7 @@ if [ -f /etc/os-release ] || [ -d /proc ]; then
     # Isaac Sim conda Env
     source ~/isaacsim/setup_conda_env.sh    
     # 使用headless模式訓練
-    python scripts/rl_games/train.py --task=Custom-Factory-PegInsert-RGBD-Camera-Direct-v0 --enable_cameras --headless
+    python scripts/rl_games/train.py --task=Custom-Factory-PegInsert-RGBD-Camera-Direct-v0 --enable_cameras --headless --num_envs=8
     
 else
     # Windows系统
