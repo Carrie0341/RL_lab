@@ -21,15 +21,19 @@ import math
 
 CAMERA_WIDTH = 256 + 128
 CAMERA_HEIGHT = 256 + 128
-CAMERA_POS = (0.4, .8, .6)  # x正左 y正後 z正上
-# CAMERA_ROT = (0.9239, 0.0, 0.3827, 0.0)
-# CAMERA_ROT = (0.9239, 0.0, -0.3827, 0.0)
 
+# 側面參數
+# CAMERA_POS = (0.4, .8, .6)  # x正左 y正後 z正上
+# roll = torch.tensor(0)  # X軸旋轉45度
+# pitch = torch.tensor(math.pi / 8)
+# yaw = torch.tensor(math.pi / 2)
+# camera_quat = quat_from_euler_xyz(roll, pitch, -yaw)
+# CAMERA_ROT = tuple(camera_quat.tolist())  # 轉換為元組格式 (w, x, y, z)
 
-# CAMERA_ROT = (0.9238795, 0.3826834, 0.0, 0.0)
+CAMERA_POS = (1.1, 0, .3)  # x正後 y正? z正上
 roll = torch.tensor(0)  # X軸旋轉45度
 pitch = torch.tensor(math.pi / 8)
-yaw = torch.tensor(math.pi / 2)
+yaw = torch.tensor(math.pi)
 camera_quat = quat_from_euler_xyz(roll, pitch, -yaw)
 CAMERA_ROT = tuple(camera_quat.tolist())  # 轉換為元組格式 (w, x, y, z)
 
