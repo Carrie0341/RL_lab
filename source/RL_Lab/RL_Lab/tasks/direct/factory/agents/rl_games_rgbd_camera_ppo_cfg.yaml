@@ -10,9 +10,9 @@ params:
     name: continuous_a2c_logstd
 
   network:
-    name: actor_critic
-    separate: True
-    
+    name: visual_factory
+    separate: False
+
     space:
       continuous:
         mu_activation: None
@@ -23,100 +23,111 @@ params:
           name: const_initializer
           val: 0
         fixed_sigma: False
-
-    # 簡化的CNN網絡
-    actor_cnn:
+    
+    # 視覺處理模塊 - 處理RGB或RGBD圖像
+    visual_encoder:
       type: conv2d
       activation: elu
       initializer:
-        name: default
+        name: orthogonal_initializer
+        gain: 1.4142 # sqrt(2)
+      regularizer:
+        name: None
       convs:
         - filters: 32
-          kernel_size: 3
+          kernel_size: 8
+          strides: 4
+          padding: 0
+        - filters: 64
+          kernel_size: 4
           strides: 2
-          padding: 1
+          padding: 0
         - filters: 64
           kernel_size: 3
-          strides: 2
-          padding: 1
-        - filters: 64
-          kernel_size: 3
-          strides: 2
-          padding: 1
-        - filters: 64
-          kernel_size: 3
-          strides: 2
-          padding: 1
-      # 重要：使用全局平均池化減少特徵維度
-      final_flatten: False
-      global_pooling: True
+          strides: 1
+          padding: 0
+      
+      # 可選的注意力機制
+      attention:
+        enabled: False
+        heads: 4
+        key_dim: 64
     
+    # 動作歷史處理模塊
+    action_encoder:
+      units: [64, 32]
+      activation: elu
+      initializer:
+        name: orthogonal_initializer
+        gain: 1.4142
+      regularizer:
+        name: None
     
+    # 融合後的MLP層
     mlp:
-      input_size: 128
-      units: [512, 256, 128]
+      units: [256, 128, 64]
       activation: elu
       d2rl: False
       initializer:
-        name: default
+        name: orthogonal_initializer
+        gain: 1.4142
       regularizer:
         name: None
-    
-    critic_mlp:
-      input_size: 128
-      units: [512, 256, 128]
-      activation: elu
-      d2rl: False
-      initializer:
-        name: default
-      regularizer:
-        name: None
+
+    rnn:
+      name: lstm
+      units: 512
+      layers: 1
+      before_mlp: False  # 改為在CNN和MLP之間
+      concat_input: True
+      layer_norm: True
 
   load_checkpoint: False
   load_path: ""
 
   config:
-    name: FactoryCamera
+    name: Factory
     device: cuda:0
-    full_experiment_name: factory_camera_ppo
+    full_experiment_name: visual_factory
     env_name: rlgpu
     multi_gpu: False
     ppo: True
     mixed_precision: True
-    normalize_input: False
+    normalize_input: False  # 圖像輸入已經在環境中歸一化
     normalize_value: True
     value_bootstrap: True
-    num_actors: 64
+    num_actors: 16  # 與factory_env_cfg.py中的num_envs匹配
     reward_shaper:
       scale_value: 1.0
     normalize_advantage: True
     gamma: 0.995
     tau: 0.95
-    learning_rate: 1.0e-4
+    learning_rate: 5.0e-5  # 降低學習率以適應視覺輸入
     lr_schedule: adaptive
     schedule_type: standard
     kl_threshold: 0.008
     score_to_win: 20000
-    max_epochs: 200
+    max_epochs: 400  # 增加訓練輪數
     save_best_after: 10
-    save_frequency: 100
+    save_frequency: 50
     print_stats: True
     grad_norm: 1.0
-    entropy_coef: 0.0
+    entropy_coef: 0.001  # 增加探索
     truncate_grads: True
     e_clip: 0.2
     horizon_length: 128
-    minibatch_size: 512
-    mini_epochs: 4
+    minibatch_size: 256  # 減小批次大小以適應GPU內存
+    mini_epochs: 6  # 增加每批次的訓練輪數
     critic_coef: 2
     clip_value: True
-    seq_length: 4
+    seq_length: 128
     bounds_loss_coef: 0.0001
 
+    # 中央價值網絡配置
     central_value_config:
-      minibatch_size: 512
-      mini_epochs: 4
-      learning_rate: 1e-4
+      minibatch_size: 256
+      mini_epochs: 6
+      learning_rate: 5e-5
       lr_schedule: adaptive
       kl_threshold: 0.008
       clip_value: True
@@ -126,17 +137,24 @@ params:
       network:
         name: actor_critic
         central_value: True
-        
-        mlp:        
-          input_size: 128
+        # 使用標準MLP處理狀態向量
+        mlp:
           units: [512, 256, 128]
           activation: elu
           d2rl: False
           initializer:
-            name: default
+            name: orthogonal_initializer
+            gain: 1.4142
           regularizer:
             name: None
 
+        rnn:
+          name: lstm
+          units: 512
+          layers: 1
+          before_mlp: True
+          concat_input: True
+          layer_norm: True
+
     player:
       deterministic: False
-      use_cuda: True

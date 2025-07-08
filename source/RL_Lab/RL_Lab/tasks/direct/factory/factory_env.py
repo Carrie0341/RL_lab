@@ -266,14 +266,13 @@ class FactoryEnv(DirectRLEnv):
         prev_actions = self.actions.clone()
 
         obs_dict = {
-            "fingertip_pos": self.fingertip_midpoint_pos,
-            "fingertip_pos_rel_fixed": self.fingertip_midpoint_pos - noisy_fixed_pos,
-            "fingertip_quat": self.fingertip_midpoint_quat,
-            "ee_linvel": self.ee_linvel_fd,
-            "ee_angvel": self.ee_angvel_fd,
-            "prev_actions": prev_actions,
+            "fingertip_pos": self.fingertip_midpoint_pos,  # 機器人指尖的世界座標位置
+            "fingertip_pos_rel_fixed": self.fingertip_midpoint_pos - noisy_fixed_pos,  # 機器人指尖相對於固定物體的位置（考慮觀測noise）
+            "fingertip_quat": self.fingertip_midpoint_quat,  # 機器人指尖的四元數旋轉
+            "ee_linvel": self.ee_linvel_fd,  # 機器人指尖的線性速度（使用有限差分計算）
+            "ee_angvel": self.ee_angvel_fd,  # 機器人指尖的角速度（使用有限差分計算）
+            "prev_actions": prev_actions,  # 上一個時間步的動作
         }
-
         state_dict = {
             "fingertip_pos": self.fingertip_midpoint_pos,
             "fingertip_pos_rel_fixed": self.fingertip_midpoint_pos - self.fixed_pos_obs_frame,

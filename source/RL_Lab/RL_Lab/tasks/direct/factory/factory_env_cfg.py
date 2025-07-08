@@ -19,8 +19,8 @@ from .factory_tasks_cfg import ASSET_DIR, FactoryTask, PegInsert
 import torch
 import math
 
-CAMERA_WIDTH = 256 + 128
-CAMERA_HEIGHT = 256 + 128
+CAMERA_WIDTH = 256
+CAMERA_HEIGHT = 256
 
 # 側面參數
 # CAMERA_POS = (0.4, .8, .6)  # x正左 y正後 z正上
@@ -42,9 +42,9 @@ CAMERA_EYE = (1.0, 1.0, 1.0)  # Viewer eye position
 num_envs = 16
 
 OBS_CAMERA_CFG = {
-    "rgb": [CAMERA_HEIGHT, CAMERA_WIDTH, 3],  # [height, width, channels]
-    "rgbd": [CAMERA_HEIGHT, CAMERA_WIDTH, 4],  # [height, width, channels]
-    "depth": [CAMERA_HEIGHT, CAMERA_WIDTH, 1]  # [height, width, channels]
+    'rgb': [CAMERA_HEIGHT, CAMERA_WIDTH, 3],
+    'depth': [CAMERA_HEIGHT, CAMERA_WIDTH, 1],
+    'rgbd': [CAMERA_HEIGHT, CAMERA_WIDTH, 4]  # 更新為4通道
 }
 OBS_DIM_CFG = {
     "fingertip_pos": 3,
@@ -277,6 +277,8 @@ class FactoryDepthCameraEnvCfg(FactoryRGBCameraEnvCfg):
 
 # Add a new task configuration for RGBD camera input
 
+# 更新 FactoryRGBDCameraEnvCfg 類
+
 
 @configclass
 class FactoryRGBDCameraEnvCfg(FactoryEnvCfg):
@@ -295,9 +297,10 @@ class FactoryRGBDCameraEnvCfg(FactoryEnvCfg):
     )
     write_image_to_file = True
 
-    # spaces
-    observation_space = [CAMERA_HEIGHT, CAMERA_WIDTH, 4]  # [height, width, channels] for RGBD
-
+    # 更新觀測空間為單一張量 [高度, 寬度, 通道數]
+    # RGB (3通道) + Depth (1通道) = 4通道
+    # observation_space = [CAMERA_HEIGHT, CAMERA_WIDTH, 4]  # [height, width, channels] for RGBD
+    observation_space = CAMERA_HEIGHT * CAMERA_WIDTH * 4 + 6
     # change viewer settings
     viewer = ViewerCfg(eye=CAMERA_EYE)
 
