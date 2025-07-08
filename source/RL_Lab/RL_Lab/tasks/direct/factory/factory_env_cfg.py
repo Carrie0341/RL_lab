@@ -42,9 +42,10 @@ CAMERA_EYE = (1.0, 1.0, 1.0)  # Viewer eye position
 num_envs = 16
 
 OBS_CAMERA_CFG = {
-    'rgb': [CAMERA_HEIGHT, CAMERA_WIDTH, 3],
-    'depth': [CAMERA_HEIGHT, CAMERA_WIDTH, 1],
-    'rgbd': [CAMERA_HEIGHT, CAMERA_WIDTH, 4]  # 更新為4通道
+    # 'rgb': [CAMERA_HEIGHT, CAMERA_WIDTH, 3],
+    # 'depth': [CAMERA_HEIGHT, CAMERA_WIDTH, 1],
+    # 'rgbd': [CAMERA_HEIGHT, CAMERA_WIDTH, 4]  # 更新為4通道
+    'rgbd': CAMERA_HEIGHT * CAMERA_WIDTH * 4 + 6
 }
 OBS_DIM_CFG = {
     "fingertip_pos": 3,

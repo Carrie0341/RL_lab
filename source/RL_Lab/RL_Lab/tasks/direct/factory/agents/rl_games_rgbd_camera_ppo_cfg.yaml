@@ -76,8 +76,8 @@ params:
 
     rnn:
       name: lstm
-      units: 512
-      layers: 1
+      units: 1024
+      layers: 2
       before_mlp: False  # 改為在CNN和MLP之間
       concat_input: True
       layer_norm: True
@@ -150,8 +150,8 @@ params:
 
         rnn:
           name: lstm
-          units: 512
-          layers: 1
+          units: 1024
+          layers: 2
           before_mlp: True
           concat_input: True
           layer_norm: True

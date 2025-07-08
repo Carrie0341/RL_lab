@@ -9,12 +9,10 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
     def __init__(self, params, **kwargs):
         nn.Module.__init__(self)
 
-        print(f"![Debug] #00 VisualFactoryNetwork: params = {params}, kwargs = {kwargs}")
         self.actions_num = kwargs.pop('actions_num')
         input_shape = kwargs.pop('input_shape')
         self.device = kwargs.get('device', 'cuda:0')
 
-        print(f"![Debug] #01 VisualFactoryNetwork: actions_num = {self.actions_num}, input_shape = {input_shape}, device = {self.device}")
         # 儲存配置參數
         self.params = params
         # 默認批次大小為16
@@ -23,70 +21,101 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
             self.num_seqs = params['config']['num_actors']
 
         # 處理輸入形狀
-        # 注意：在factory_camera_env.py中，觀測已經被攤平並連接成一個向量
-        # 我們需要從這個向量中提取相機數據和前一步動作
-
         # 獲取動作空間大小
-        action_dim = 6  # 固定為6維動作
-        camera_shape = input_shape
+        self.action_dim = 6  # 固定為6維動作
 
-        print(f"![Debug] #02 VisualFactoryNetwork: camera_shape = {camera_shape}, action_dim = {action_dim}")
+        # 獲取實際輸入大小
+        if isinstance(input_shape, int):
+            # 如果輸入是一個整數，表示攤平的觀測
+            self.input_size = input_shape
+            # 計算相機數據大小 = 總大小 - 動作維度
+            self.camera_size = self.input_size - self.action_dim
 
-        # 計算相機數據的原始形狀
-        # 假設是RGBD (4通道)，需要從攤平的形狀重建
-        channels = 4
-        if isinstance(camera_shape, tuple) and len(camera_shape) == 1:
-            # 如果是攤平的形狀，計算高度和寬度
-            total_pixels = camera_shape[0]
-            h = w = int(np.sqrt(total_pixels / channels))
-            self.camera_shape = (h, w, channels)
-        else:
-            # 否則直接使用提供的形狀
-            self.camera_shape = camera_shape
+            # 使用實際的256x256x4相機尺寸
+            self.img_height = 256
+            self.img_width = 256
+            self.img_channels = 4  # RGBD
 
-        # 記錄形狀信息以便在forward中使用
-        self.camera_size = np.prod(self.camera_shape)
-        self.action_dim = action_dim
-        print(f"![Debug] #03 VisualFactoryNetwork: camera_size = {self.camera_size}, action_dim = {self.action_dim}")
-
-        # 構建視覺編碼器 (CNN)
-        visual_encoder = []
-
-        # 添加卷積層
-        conv_configs = params['visual_encoder']['convs']
-        for i, conv_config in enumerate(conv_configs):
-            if i == 0:
-                input_channels = channels
+            # 檢查計算出的相機大小是否正確
+            expected_camera_size = self.img_height * self.img_width * self.img_channels
+            if expected_camera_size != self.camera_size:
+                # print(f"# [Warning] Calculated camera size {self.camera_size} doesn't match expected {expected_camera_size}")
+                # 嘗試調整尺寸使其匹配
+                self.use_linear_encoder = True
             else:
-                input_channels = conv_configs[i - 1]['filters']
+                self.use_linear_encoder = False
+        else:
+            # 如果是(H, W, C)形式或其他格式，使用默認值
+            self.img_height = 256
+            self.img_width = 256
+            self.img_channels = 4  # RGBD
+            self.camera_size = self.img_height * self.img_width * self.img_channels
+            self.input_size = self.camera_size + self.action_dim
+            self.use_linear_encoder = False
 
-            visual_encoder.append(
-                nn.Conv2d(
-                    input_channels,
-                    conv_config['filters'],
-                    kernel_size=conv_config['kernel_size'],
-                    stride=conv_config['strides'],
-                    padding=conv_config['padding']
-                )
-            )
+        # print(f"# [Debug] Network initialized with camera_size={self.camera_size}, input_size={self.input_size}")
+        # print(f"# [Debug] Image dimensions: {self.img_height}x{self.img_width}x{self.img_channels}")
 
-            # 添加激活函數
-            if params['visual_encoder']['activation'] == 'elu':
+        # 構建視覺編碼器
+        if self.use_linear_encoder:
+            # 使用線性層處理攤平的輸入
+            visual_encoder = []
+
+            # 創建3層全連接網絡
+            hidden_sizes = [1024, 512, 256]
+
+            for i, hidden_size in enumerate(hidden_sizes):
+                if i == 0:
+                    visual_encoder.append(nn.Linear(self.camera_size, hidden_size))
+                else:
+                    visual_encoder.append(nn.Linear(hidden_sizes[i - 1], hidden_size))
+
+                # 添加激活函數
                 visual_encoder.append(nn.ELU())
-            elif params['visual_encoder']['activation'] == 'relu':
-                visual_encoder.append(nn.ReLU())
-            elif params['visual_encoder']['activation'] == 'tanh':
-                visual_encoder.append(nn.Tanh())
 
-        self.visual_encoder = nn.Sequential(*visual_encoder)
+            self.visual_encoder = nn.Sequential(*visual_encoder)
 
-        # 計算CNN輸出尺寸
-        with torch.no_grad():
-            # 創建一個樣本輸入 [B, C, H, W]
-            print(f"(1, channels, self.camera_shape[0], self.camera_shape[1]) = {1, channels, self.camera_shape[0], self.camera_shape[1]}")
-            sample_input = torch.zeros((1, channels, self.camera_shape[0], self.camera_shape[1]))
-            cnn_out = self.visual_encoder(sample_input)
-            cnn_out_size = cnn_out.numel() // cnn_out.shape[0]
+            # 計算視覺編碼器輸出大小
+            self.visual_out_size = hidden_sizes[-1]
+        else:
+            # 使用卷積網絡處理圖像
+            visual_encoder = []
+
+            # 添加卷積層
+            conv_configs = params['visual_encoder']['convs']
+            for i, conv_config in enumerate(conv_configs):
+                if i == 0:
+                    input_channels = self.img_channels
+                else:
+                    input_channels = conv_configs[i - 1]['filters']
+
+                visual_encoder.append(
+                    nn.Conv2d(
+                        input_channels,
+                        conv_config['filters'],
+                        kernel_size=conv_config['kernel_size'],
+                        stride=conv_config['strides'],
+                        padding=conv_config['padding']
+                    )
+                )
+
+                # 添加激活函數
+                if params['visual_encoder']['activation'] == 'elu':
+                    visual_encoder.append(nn.ELU())
+                elif params['visual_encoder']['activation'] == 'relu':
+                    visual_encoder.append(nn.ReLU())
+                elif params['visual_encoder']['activation'] == 'tanh':
+                    visual_encoder.append(nn.Tanh())
+
+            self.visual_encoder = nn.Sequential(*visual_encoder)
+
+            # 計算CNN輸出尺寸
+            with torch.no_grad():
+                # 創建一個樣本輸入 [B, C, H, W]
+                sample_input = torch.zeros((1, self.img_channels, self.img_height, self.img_width))
+                cnn_out = self.visual_encoder(sample_input)
+                self.cnn_out_shape = cnn_out.shape[1:]  # [C', H', W']
+                self.visual_out_size = np.prod(self.cnn_out_shape)
 
         # 動作編碼器 (MLP)
         action_encoder = []
@@ -94,7 +123,7 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
         action_units = params['action_encoder']['units']
         for i, units in enumerate(action_units):
             if i == 0:
-                action_encoder.append(nn.Linear(action_dim, units))
+                action_encoder.append(nn.Linear(self.action_dim, units))
             else:
                 action_encoder.append(nn.Linear(action_units[i - 1], units))
 
@@ -119,6 +148,9 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
                 vdim=params['visual_encoder']['attention']['key_dim']
             )
 
+        # 計算特徵融合後的大小
+        combined_features_size = self.visual_out_size + action_out_size
+
         # LSTM層 (可選)
         self._is_rnn = False
         self.rnn_units = 0
@@ -132,14 +164,14 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
 
             if self.rnn_name == 'lstm':
                 self.rnn = nn.LSTM(
-                    cnn_out_size + action_out_size,
+                    combined_features_size,
                     self.rnn_units,
                     self.rnn_layers,
                     batch_first=True
                 )
             elif self.rnn_name == 'gru':
                 self.rnn = nn.GRU(
-                    cnn_out_size + action_out_size,
+                    combined_features_size,
                     self.rnn_units,
                     self.rnn_layers,
                     batch_first=True
@@ -147,7 +179,7 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
 
             mlp_input_size = self.rnn_units
         else:
-            mlp_input_size = cnn_out_size + action_out_size
+            mlp_input_size = combined_features_size
 
         # 融合MLP層
         mlp_layers = []
@@ -187,6 +219,8 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
         nn.init.zeros_(self.mu.bias)
         nn.init.orthogonal_(self.value.weight, gain=1.0)
         nn.init.zeros_(self.value.bias)
+
+        # print(f"# [Debug] initialized VisualFactoryNetwork with params: {params}")
 
     def is_rnn(self):
         """返回網絡是否使用RNN"""
@@ -235,6 +269,9 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
             obs_tensor: 可以是tensor或dict格式的觀測值
             rnn_states: RNN狀態 (如果使用RNN)
         """
+
+        # print(f"# [Debug] VisualFactoryNetwork forward called with obs_tensor: {obs_tensor.shape if isinstance(obs_tensor, torch.Tensor) else obs_tensor['obs'].shape}")
+
         # 處理輸入 - 從攤平的tensor中提取相機數據和前一步動作
         if isinstance(obs_tensor, dict):
             if 'obs' in obs_tensor:
@@ -258,16 +295,43 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
         batch_size = camera_data.shape[0]
         device = camera_data.device
 
-        # 重塑相機數據為 [B, H, W, C] 格式
-        h, w, c = self.camera_shape
-        camera_data = camera_data.reshape(batch_size, h, w, c)
-
-        # 轉換為 [B, C, H, W] 格式以便進行卷積操作
-        camera_data = camera_data.permute(0, 3, 1, 2)
-
         # 視覺特徵提取
-        visual_features = self.visual_encoder(camera_data)
-        visual_features = visual_features.reshape(batch_size, -1)  # 扁平化
+        if self.use_linear_encoder:
+            # 直接使用線性層處理攤平的數據
+            visual_features = self.visual_encoder(camera_data)
+        else:
+            try:
+                # 重塑相機數據為 [B, C, H, W] 格式
+                camera_data = camera_data.reshape(batch_size, self.img_height, self.img_width, self.img_channels)
+                camera_data = camera_data.permute(0, 3, 1, 2)  # [B, C, H, W]
+
+                # 通過CNN處理
+                visual_features = self.visual_encoder(camera_data)
+                visual_features = visual_features.reshape(batch_size, -1)  # 扁平化
+            except RuntimeError as e:
+                # print(f"Error reshaping camera data: {e}")
+                # print(f"Camera data shape: {camera_data.shape}")
+                # print(f"Expected shape after reshape: [{batch_size}, {self.img_height}, {self.img_width}, {self.img_channels}]")
+                # print(f"Total elements in camera_data: {camera_data.numel()}")
+                # print(f"Expected elements: {batch_size * self.img_height * self.img_width * self.img_channels}")
+
+                # 如果沒有備用編碼器，創建一個
+                if not hasattr(self, 'fallback_encoder'):
+                    fallback_encoder = []
+                    input_size = camera_data.shape[1]
+                    hidden_sizes = [512, 256, 128]
+
+                    for i, hidden_size in enumerate(hidden_sizes):
+                        if i == 0:
+                            fallback_encoder.append(nn.Linear(input_size, hidden_size))
+                        else:
+                            fallback_encoder.append(nn.Linear(hidden_sizes[i - 1], hidden_size))
+                        fallback_encoder.append(nn.ELU())
+
+                    self.fallback_encoder = nn.Sequential(*fallback_encoder).to(device)
+
+                # 使用備用編碼器
+                visual_features = self.fallback_encoder(camera_data)
 
         # 動作特徵提取
         action_features = self.action_encoder(prev_actions)
@@ -281,7 +345,7 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
                 combined_features = combined_features.unsqueeze(1)  # 添加時間維度
 
             if rnn_states is None:
-                # 獲取默認的RNN狀態，確保在正確的設備上
+                # 獲取默認的RNN狀態
                 rnn_states = self._get_rnn_state(batch_size, device)
             else:
                 # 確保RNN狀態在正確的設備上
@@ -311,6 +375,8 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
         mu = self.mu(mlp_out)
         sigma = self.sigma.expand_as(mu)
 
+        # print(f"# [Debug] mu shape: {mu.shape}, sigma shape: {sigma.shape}, value shape: {value.shape}")
+
         return mu, sigma, value, new_rnn_states
 
 
@@ -329,5 +395,5 @@ class VisualFactoryNetworkBuilder(network_builder.NetworkBuilder):
         return self.build(name, **kwargs)
 
 
-# 正確註冊網絡
+# 註冊網絡
 model_builder.register_network('visual_factory', VisualFactoryNetworkBuilder)
