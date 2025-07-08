@@ -96,7 +96,7 @@ params:
     normalize_input: False  # 圖像輸入已經在環境中歸一化
     normalize_value: True
     value_bootstrap: True
-    num_actors: 16  # 與factory_env_cfg.py中的num_envs匹配
+    num_actors: 32  # 與factory_env_cfg.py中的num_envs匹配
     reward_shaper:
       scale_value: 1.0
     normalize_advantage: True
