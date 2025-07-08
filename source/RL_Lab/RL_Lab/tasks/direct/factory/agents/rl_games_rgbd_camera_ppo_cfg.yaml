@@ -65,7 +65,7 @@ params:
     
     # 融合後的MLP層
     mlp:
-      units: [256, 128, 64]
+      units: [512, 256, 128]
       activation: elu
       d2rl: False
       initializer:
@@ -107,7 +107,7 @@ params:
     schedule_type: standard
     kl_threshold: 0.008
     score_to_win: 20000
-    max_epochs: 400  # 增加訓練輪數
+    max_epochs: 600  # 增加訓練輪數
     save_best_after: 10
     save_frequency: 50
     print_stats: True
