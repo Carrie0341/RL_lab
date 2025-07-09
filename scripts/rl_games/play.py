@@ -68,6 +68,7 @@ import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils import get_checkpoint_path, load_cfg_from_registry, parse_env_cfg
 
 import RL_Lab.tasks  # noqa: F401
+from network.visual_factory_network import VisualFactoryNetwork
 
 
 def main():
