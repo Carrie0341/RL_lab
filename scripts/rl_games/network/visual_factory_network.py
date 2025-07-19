@@ -16,7 +16,7 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
         # 儲存配置參數
         self.params = params
         # 默認批次大小為16
-        self.num_seqs = 32
+        self.num_seqs = 64
         if 'config' in params and 'num_actors' in params['config']:
             self.num_seqs = params['config']['num_actors']
 

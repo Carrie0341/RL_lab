@@ -96,18 +96,18 @@ params:
     normalize_input: False  # 圖像輸入已經在環境中歸一化
     normalize_value: True
     value_bootstrap: True
-    num_actors: 24  # 與factory_env_cfg.py中的num_envs匹配
+    num_actors: 32  # 與factory_env_cfg.py中的num_envs匹配
     reward_shaper:
       scale_value: 1.0
     normalize_advantage: True
     gamma: 0.995
     tau: 0.95
-    learning_rate: 1.0e-4  # 降低學習率以適應複雜的視覺輸入
+    learning_rate: 5.0e-5  # 降低學習率以適應複雜的視覺輸入
     lr_schedule: adaptive
     schedule_type: standard
     kl_threshold: 0.008
     score_to_win: 20000
-    max_epochs: 800  # 增加訓練輪數
+    max_epochs: 600  
     save_best_after: 10
     save_frequency: 50
     print_stats: True
@@ -127,7 +127,7 @@ params:
     central_value_config:
       minibatch_size: 128
       mini_epochs: 6
-      learning_rate: 1e-4
+      learning_rate: 5e-5
       lr_schedule: adaptive
       kl_threshold: 0.008
       clip_value: True
