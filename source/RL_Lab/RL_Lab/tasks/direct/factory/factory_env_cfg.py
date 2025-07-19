@@ -30,12 +30,12 @@ CAMERA_HEIGHT = 256
 # camera_quat = quat_from_euler_xyz(roll, pitch, -yaw)
 # CAMERA_ROT = tuple(camera_quat.tolist())  # 轉換為元組格式 (w, x, y, z)
 
-CAMERA_POS = (1.1, 0, .3)  # x正後 y正? z正上
-roll = torch.tensor(0)  # X軸旋轉45度
-pitch = torch.tensor(math.pi / 8)
-yaw = torch.tensor(math.pi)
-camera_quat = quat_from_euler_xyz(roll, pitch, -yaw)
-CAMERA_ROT = tuple(camera_quat.tolist())  # 轉換為元組格式 (w, x, y, z)
+CAMERA_POS = [(1.1, 0, .3), (0.4, .8, .6)]
+roll = [torch.tensor(0), torch.tensor(0)]  # X軸旋轉45度
+pitch = [torch.tensor(math.pi / 8), torch.tensor(math.pi / 8)]
+yaw = [torch.tensor(math.pi), torch.tensor(math.pi / 2)]
+camera_quat = [quat_from_euler_xyz(roll[i], pitch[i], -yaw[i]) for i in range(len(CAMERA_POS))]
+CAMERA_ROT = [tuple(camera_quat[i].tolist()) for i in range(len(CAMERA_POS))]  # 轉換為元組格式 (w, x, y, z)
 
 
 CAMERA_EYE = (1.0, 1.0, 1.0)  # Viewer eye position
@@ -232,9 +232,9 @@ class FactoryRGBCameraEnvCfg(FactoryEnvCfg):
     """Configuration for Factory environment with RGB camera."""
     task_name = "peg_insert_rgb_camera"
     # camera
-    tiled_camera: TiledCameraCfg = TiledCameraCfg(
+    tiled_camera_front: TiledCameraCfg = TiledCameraCfg(
         prim_path="/World/envs/env_.*/Camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS, rot=CAMERA_ROT, convention="world"),
+        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS[0], rot=CAMERA_ROT, convention="world"),
         data_types=["rgb"],
         spawn=sim_utils.PinholeCameraCfg(
             focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
@@ -262,9 +262,9 @@ class FactoryDepthCameraEnvCfg(FactoryRGBCameraEnvCfg):
     """Configuration for Factory environment with depth camera."""
     task_name = "peg_insert_depth_camera"
     # camera
-    tiled_camera: TiledCameraCfg = TiledCameraCfg(
+    tiled_camera_front: TiledCameraCfg = TiledCameraCfg(
         prim_path="/World/envs/env_.*/Camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS, rot=CAMERA_ROT, convention="world"),
+        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS[0], rot=CAMERA_ROT, convention="world"),
         data_types=["depth"],
         spawn=sim_utils.PinholeCameraCfg(
             focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
@@ -286,9 +286,9 @@ class FactoryRGBDCameraEnvCfg(FactoryEnvCfg):
     """Configuration for Factory environment with RGBD camera."""
     task_name = "peg_insert_rgbd_camera"
     # camera
-    tiled_camera: TiledCameraCfg = TiledCameraCfg(
+    tiled_camera_front: TiledCameraCfg = TiledCameraCfg(
         prim_path="/World/envs/env_.*/Camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS, rot=CAMERA_ROT, convention="world"),
+        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS[0], rot=CAMERA_ROT, convention="world"),
         data_types=["rgb", "depth"],
         spawn=sim_utils.PinholeCameraCfg(
             focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)

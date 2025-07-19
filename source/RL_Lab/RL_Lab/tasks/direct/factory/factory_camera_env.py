@@ -27,45 +27,45 @@ class FactoryCameraEnv(FactoryEnv):
         super()._setup_scene()
 
         # 添加相機
-        self._tiled_camera = TiledCamera(self.cfg.tiled_camera)
-        self.scene.sensors["camera"] = self._tiled_camera
+        self._tiled_camera_front = TiledCamera(self.cfg.tiled_camera_front)
+        self.scene.sensors["camera"] = self._tiled_camera_front
 
     def _get_observations(self):
         """Get observations from camera for policy and state vectors for critic."""
         # 獲取相機數據
-        data_type = self.cfg.tiled_camera.data_types[0]  # 使用配置中的第一個數據類型
+        data_type = self.cfg.tiled_camera_front.data_types[0]  # 使用配置中的第一個數據類型
 
         if self.is_rgbd_task:
             # 分別處理 RGB 和 Depth 圖像
-            rgb_data = self._tiled_camera.data.output["rgb"] / 255.0
+            rgb_data = self._tiled_camera_front.data.output["rgb"] / 255.0
             # 標準化 RGB 數據
             rgb_mean = torch.mean(rgb_data, dim=(1, 2), keepdim=True)
             rgb_std = torch.std(rgb_data, dim=(1, 2), keepdim=True) + 1e-6  # 避免除以零
             rgb_data = (rgb_data - rgb_mean) / rgb_std
 
-            depth_data = self._tiled_camera.data.output["depth"]
+            depth_data = self._tiled_camera_front.data.output["depth"]
             # 處理無限深度值
             depth_data[depth_data == float("inf")] = 0.0
             # 歸一化深度值到 [0, 1] 範圍
-            max_depth = self.cfg.tiled_camera.spawn.clipping_range[1]
+            max_depth = self.cfg.tiled_camera_front.spawn.clipping_range[1]
             depth_data = depth_data / max_depth
 
             # 將 RGB 和 Depth 合併為一個張量
             camera_data = torch.cat([rgb_data, depth_data], dim=-1)  # [B, H, W, 4]
         elif data_type == "rgb":
             # 獲取RGB圖像並歸一化到[0,1]範圍
-            camera_data = self._tiled_camera.data.output[data_type] / 255.0
+            camera_data = self._tiled_camera_front.data.output[data_type] / 255.0
             # 標準化處理
             mean = torch.mean(camera_data, dim=(1, 2), keepdim=True)
             std = torch.std(camera_data, dim=(1, 2), keepdim=True) + 1e-6  # 避免除以零
             camera_data = (camera_data - mean) / std
         elif data_type == "depth":
             # 獲取深度圖像
-            camera_data = self._tiled_camera.data.output[data_type]
+            camera_data = self._tiled_camera_front.data.output[data_type]
             # 處理無限深度值
             camera_data[camera_data == float("inf")] = 0.0
             # 歸一化深度值到 [0, 1] 範圍
-            max_depth = self.cfg.tiled_camera.spawn.clipping_range[1]
+            max_depth = self.cfg.tiled_camera_front.spawn.clipping_range[1]
             camera_data = camera_data / max_depth
         else:
             raise ValueError(f"Unsupported camera data type: {data_type}")
