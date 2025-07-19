@@ -36,11 +36,25 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
             self.img_width = 256
             self.img_channels = 4  # RGBD
 
+            # 檢查是否是多相機設置
+            expected_single_camera_size = self.img_height * self.img_width * self.img_channels
+            self.num_cameras = self.camera_size // expected_single_camera_size
+
+            if self.num_cameras > 1 and self.camera_size % expected_single_camera_size == 0:
+                # 多相機設置
+                self.is_multi_camera = True
+                self.single_camera_size = expected_single_camera_size
+            else:
+                # 單相機或不規則大小
+                self.is_multi_camera = False
+                self.single_camera_size = self.camera_size
+
             # 檢查計算出的相機大小是否正確
-            expected_camera_size = self.img_height * self.img_width * self.img_channels
-            if expected_camera_size != self.camera_size:
-                # print(f"# [Warning] Calculated camera size {self.camera_size} doesn't match expected {expected_camera_size}")
-                # 嘗試調整尺寸使其匹配
+            if self.is_multi_camera:
+                # 多相機設置
+                self.use_linear_encoder = False
+            elif expected_single_camera_size != self.camera_size:
+                # 單相機但大小不匹配
                 self.use_linear_encoder = True
             else:
                 self.use_linear_encoder = False
@@ -52,9 +66,9 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
             self.camera_size = self.img_height * self.img_width * self.img_channels
             self.input_size = self.camera_size + self.action_dim
             self.use_linear_encoder = False
-
-        # print(f"# [Debug] Network initialized with camera_size={self.camera_size}, input_size={self.input_size}")
-        # print(f"# [Debug] Image dimensions: {self.img_height}x{self.img_width}x{self.img_channels}")
+            self.is_multi_camera = False
+            self.single_camera_size = self.camera_size
+            self.num_cameras = 1
 
         # 構建視覺編碼器
         if self.use_linear_encoder:
@@ -79,43 +93,34 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
             self.visual_out_size = hidden_sizes[-1]
         else:
             # 使用卷積網絡處理圖像
-            visual_encoder = []
+            # 如果是多相機，為每個相機創建一個編碼器
+            if self.is_multi_camera:
+                self.camera_encoders = nn.ModuleList()
+                for _ in range(self.num_cameras):
+                    encoder = self._build_conv_encoder(params)
+                    self.camera_encoders.append(encoder)
 
-            # 添加卷積層
-            conv_configs = params['visual_encoder']['convs']
-            for i, conv_config in enumerate(conv_configs):
-                if i == 0:
-                    input_channels = self.img_channels
-                else:
-                    input_channels = conv_configs[i - 1]['filters']
+                # 計算單個相機編碼器的輸出大小
+                with torch.no_grad():
+                    # 創建一個樣本輸入 [B, C, H, W]
+                    sample_input = torch.zeros((1, self.img_channels, self.img_height, self.img_width))
+                    cnn_out = self.camera_encoders[0](sample_input)
+                    self.cnn_out_shape = cnn_out.shape[1:]  # [C', H', W']
+                    self.single_encoder_out_size = np.prod(self.cnn_out_shape)
 
-                visual_encoder.append(
-                    nn.Conv2d(
-                        input_channels,
-                        conv_config['filters'],
-                        kernel_size=conv_config['kernel_size'],
-                        stride=conv_config['strides'],
-                        padding=conv_config['padding']
-                    )
-                )
+                # 總視覺輸出大小是所有相機編碼器輸出的總和
+                self.visual_out_size = self.single_encoder_out_size * self.num_cameras
+            else:
+                # 單相機設置
+                self.visual_encoder = self._build_conv_encoder(params)
 
-                # 添加激活函數
-                if params['visual_encoder']['activation'] == 'elu':
-                    visual_encoder.append(nn.ELU())
-                elif params['visual_encoder']['activation'] == 'relu':
-                    visual_encoder.append(nn.ReLU())
-                elif params['visual_encoder']['activation'] == 'tanh':
-                    visual_encoder.append(nn.Tanh())
-
-            self.visual_encoder = nn.Sequential(*visual_encoder)
-
-            # 計算CNN輸出尺寸
-            with torch.no_grad():
-                # 創建一個樣本輸入 [B, C, H, W]
-                sample_input = torch.zeros((1, self.img_channels, self.img_height, self.img_width))
-                cnn_out = self.visual_encoder(sample_input)
-                self.cnn_out_shape = cnn_out.shape[1:]  # [C', H', W']
-                self.visual_out_size = np.prod(self.cnn_out_shape)
+                # 計算CNN輸出尺寸
+                with torch.no_grad():
+                    # 創建一個樣本輸入 [B, C, H, W]
+                    sample_input = torch.zeros((1, self.img_channels, self.img_height, self.img_width))
+                    cnn_out = self.visual_encoder(sample_input)
+                    self.cnn_out_shape = cnn_out.shape[1:]  # [C', H', W']
+                    self.visual_out_size = np.prod(self.cnn_out_shape)
 
         # 動作編碼器 (MLP)
         action_encoder = []
@@ -141,12 +146,15 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
         # 注意力機制 (可選)
         self.attention = None
         if 'attention' in params['visual_encoder'] and params['visual_encoder']['attention']['enabled']:
-            self.attention = nn.MultiheadAttention(
-                embed_dim=conv_configs[-1]['filters'],
-                num_heads=params['visual_encoder']['attention']['heads'],
-                kdim=params['visual_encoder']['attention']['key_dim'],
-                vdim=params['visual_encoder']['attention']['key_dim']
-            )
+            if self.is_multi_camera:
+                # 對於多相機，使用注意力機制融合不同相機的特徵
+                conv_configs = params['visual_encoder']['convs']
+                self.attention = nn.MultiheadAttention(
+                    embed_dim=conv_configs[-1]['filters'],
+                    num_heads=params['visual_encoder']['attention']['heads'],
+                    kdim=params['visual_encoder']['attention']['key_dim'],
+                    vdim=params['visual_encoder']['attention']['key_dim']
+                )
 
         # 計算特徵融合後的大小
         combined_features_size = self.visual_out_size + action_out_size
@@ -220,7 +228,37 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
         nn.init.orthogonal_(self.value.weight, gain=1.0)
         nn.init.zeros_(self.value.bias)
 
-        # print(f"# [Debug] initialized VisualFactoryNetwork with params: {params}")
+    def _build_conv_encoder(self, params):
+        """構建卷積編碼器"""
+        visual_encoder = []
+
+        # 添加卷積層
+        conv_configs = params['visual_encoder']['convs']
+        for i, conv_config in enumerate(conv_configs):
+            if i == 0:
+                input_channels = self.img_channels
+            else:
+                input_channels = conv_configs[i - 1]['filters']
+
+            visual_encoder.append(
+                nn.Conv2d(
+                    input_channels,
+                    conv_config['filters'],
+                    kernel_size=conv_config['kernel_size'],
+                    stride=conv_config['strides'],
+                    padding=conv_config['padding']
+                )
+            )
+
+            # 添加激活函數
+            if params['visual_encoder']['activation'] == 'elu':
+                visual_encoder.append(nn.ELU())
+            elif params['visual_encoder']['activation'] == 'relu':
+                visual_encoder.append(nn.ReLU())
+            elif params['visual_encoder']['activation'] == 'tanh':
+                visual_encoder.append(nn.Tanh())
+
+        return nn.Sequential(*visual_encoder)
 
     def is_rnn(self):
         """返回網絡是否使用RNN"""
@@ -270,8 +308,6 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
             rnn_states: RNN狀態 (如果使用RNN)
         """
 
-        # print(f"# [Debug] VisualFactoryNetwork forward called with obs_tensor: {obs_tensor.shape if isinstance(obs_tensor, torch.Tensor) else obs_tensor['obs'].shape}")
-
         # 處理輸入 - 從攤平的tensor中提取相機數據和前一步動作
         if isinstance(obs_tensor, dict):
             if 'obs' in obs_tensor:
@@ -301,20 +337,46 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
             visual_features = self.visual_encoder(camera_data)
         else:
             try:
-                # 重塑相機數據為 [B, C, H, W] 格式
-                camera_data = camera_data.reshape(batch_size, self.img_height, self.img_width, self.img_channels)
-                camera_data = camera_data.permute(0, 3, 1, 2)  # [B, C, H, W]
+                if self.is_multi_camera:
+                    # 多相機處理
+                    all_visual_features = []
 
-                # 通過CNN處理
-                visual_features = self.visual_encoder(camera_data)
-                visual_features = visual_features.reshape(batch_size, -1)  # 扁平化
+                    for i in range(self.num_cameras):
+                        # 提取每個相機的數據
+                        start_idx = i * self.single_camera_size
+                        end_idx = (i + 1) * self.single_camera_size
+                        single_camera_data = camera_data[:, start_idx:end_idx]
+
+                        # 重塑為[B, C, H, W]格式
+                        single_camera_data = single_camera_data.reshape(batch_size, self.img_height, self.img_width, self.img_channels)
+                        single_camera_data = single_camera_data.permute(0, 3, 1, 2)  # [B, C, H, W]
+
+                        # 使用對應的編碼器處理
+                        features = self.camera_encoders[i](single_camera_data)
+                        features = features.reshape(batch_size, -1)  # 扁平化
+                        all_visual_features.append(features)
+
+                    # 如果啟用了注意力機制，使用它來融合特徵
+                    if self.attention is not None:
+                        # 重塑特徵以適應注意力機制 [seq_len, batch, embed_dim]
+                        stacked_features = torch.stack(all_visual_features, dim=0)
+                        # 應用注意力
+                        attn_output, _ = self.attention(stacked_features, stacked_features, stacked_features)
+                        # 重塑回原始形狀並攤平
+                        visual_features = attn_output.sum(dim=0)  # [batch, embed_dim]
+                    else:
+                        # 否則，簡單地連接所有特徵
+                        visual_features = torch.cat(all_visual_features, dim=1)
+                else:
+                    # 單相機處理
+                    # 重塑相機數據為 [B, C, H, W] 格式
+                    camera_data = camera_data.reshape(batch_size, self.img_height, self.img_width, self.img_channels)
+                    camera_data = camera_data.permute(0, 3, 1, 2)  # [B, C, H, W]
+
+                    # 通過CNN處理
+                    visual_features = self.visual_encoder(camera_data)
+                    visual_features = visual_features.reshape(batch_size, -1)  # 扁平化
             except RuntimeError as e:
-                # print(f"Error reshaping camera data: {e}")
-                # print(f"Camera data shape: {camera_data.shape}")
-                # print(f"Expected shape after reshape: [{batch_size}, {self.img_height}, {self.img_width}, {self.img_channels}]")
-                # print(f"Total elements in camera_data: {camera_data.numel()}")
-                # print(f"Expected elements: {batch_size * self.img_height * self.img_width * self.img_channels}")
-
                 # 如果沒有備用編碼器，創建一個
                 if not hasattr(self, 'fallback_encoder'):
                     fallback_encoder = []
@@ -374,8 +436,6 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
         value = self.value(mlp_out)
         mu = self.mu(mlp_out)
         sigma = self.sigma.expand_as(mu)
-
-        # print(f"# [Debug] mu shape: {mu.shape}, sigma shape: {sigma.shape}, value shape: {value.shape}")
 
         return mu, sigma, value, new_rnn_states
 

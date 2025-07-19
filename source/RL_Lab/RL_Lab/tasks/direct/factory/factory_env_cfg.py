@@ -22,14 +22,7 @@ import math
 CAMERA_WIDTH = 256
 CAMERA_HEIGHT = 256
 
-# 側面參數
-# CAMERA_POS = (0.4, .8, .6)  # x正左 y正後 z正上
-# roll = torch.tensor(0)  # X軸旋轉45度
-# pitch = torch.tensor(math.pi / 8)
-# yaw = torch.tensor(math.pi / 2)
-# camera_quat = quat_from_euler_xyz(roll, pitch, -yaw)
-# CAMERA_ROT = tuple(camera_quat.tolist())  # 轉換為元組格式 (w, x, y, z)
-
+# 定義多個相機視角
 CAMERA_POS = [(1.1, 0, .3), (0.4, .8, .6)]
 roll = [torch.tensor(0), torch.tensor(0)]  # X軸旋轉45度
 pitch = [torch.tensor(math.pi / 8), torch.tensor(math.pi / 8)]
@@ -39,13 +32,18 @@ CAMERA_ROT = [tuple(camera_quat[i].tolist()) for i in range(len(CAMERA_POS))]  #
 
 
 CAMERA_EYE = (1.0, 1.0, 1.0)  # Viewer eye position
-num_envs = 16
+num_envs = 32
+
+# 每個相機的RGBD數據大小
+CAMERA_CHANNELS = 4  # RGBD
+SINGLE_CAMERA_DATA_SIZE = CAMERA_HEIGHT * CAMERA_WIDTH * CAMERA_CHANNELS
+# 多相機的總數據大小 + 動作維度
+MULTI_CAMERA_DATA_SIZE = SINGLE_CAMERA_DATA_SIZE * len(CAMERA_POS)
+ACTION_DIM = 6
+TOTAL_OBS_SIZE = MULTI_CAMERA_DATA_SIZE + ACTION_DIM
 
 OBS_CAMERA_CFG = {
-    # 'rgb': [CAMERA_HEIGHT, CAMERA_WIDTH, 3],
-    # 'depth': [CAMERA_HEIGHT, CAMERA_WIDTH, 1],
-    # 'rgbd': [CAMERA_HEIGHT, CAMERA_WIDTH, 4]  # 更新為4通道
-    'rgbd': CAMERA_HEIGHT * CAMERA_WIDTH * 4 + 6
+    'rgbd': TOTAL_OBS_SIZE
 }
 OBS_DIM_CFG = {
     "fingertip_pos": 3,
@@ -234,7 +232,7 @@ class FactoryRGBCameraEnvCfg(FactoryEnvCfg):
     # camera
     tiled_camera_front: TiledCameraCfg = TiledCameraCfg(
         prim_path="/World/envs/env_.*/Camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS[0], rot=CAMERA_ROT, convention="world"),
+        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS[0], rot=CAMERA_ROT[0], convention="world"),
         data_types=["rgb"],
         spawn=sim_utils.PinholeCameraCfg(
             focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
@@ -264,7 +262,7 @@ class FactoryDepthCameraEnvCfg(FactoryRGBCameraEnvCfg):
     # camera
     tiled_camera_front: TiledCameraCfg = TiledCameraCfg(
         prim_path="/World/envs/env_.*/Camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS[0], rot=CAMERA_ROT, convention="world"),
+        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS[0], rot=CAMERA_ROT[0], convention="world"),
         data_types=["depth"],
         spawn=sim_utils.PinholeCameraCfg(
             focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
@@ -276,19 +274,16 @@ class FactoryDepthCameraEnvCfg(FactoryRGBCameraEnvCfg):
     # spaces
     observation_space = [CAMERA_HEIGHT, CAMERA_WIDTH, 1]  # [height, width, channels]
 
-# Add a new task configuration for RGBD camera input
-
-# 更新 FactoryRGBDCameraEnvCfg 類
-
 
 @configclass
 class FactoryRGBDCameraEnvCfg(FactoryEnvCfg):
-    """Configuration for Factory environment with RGBD camera."""
-    task_name = "peg_insert_rgbd_camera"
-    # camera
-    tiled_camera_front: TiledCameraCfg = TiledCameraCfg(
-        prim_path="/World/envs/env_.*/Camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS[0], rot=CAMERA_ROT, convention="world"),
+    """Configuration for Factory environment with multiple RGBD cameras."""
+    task_name = "peg_insert_multi_rgbd_camera"
+
+    # 定義多個相機
+    tiled_camera_1: TiledCameraCfg = TiledCameraCfg(
+        prim_path="/World/envs/env_.*/Camera1",
+        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS[0], rot=CAMERA_ROT[0], convention="world"),
         data_types=["rgb", "depth"],
         spawn=sim_utils.PinholeCameraCfg(
             focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
@@ -296,12 +291,23 @@ class FactoryRGBDCameraEnvCfg(FactoryEnvCfg):
         width=CAMERA_WIDTH,
         height=CAMERA_HEIGHT,
     )
+
+    tiled_camera_2: TiledCameraCfg = TiledCameraCfg(
+        prim_path="/World/envs/env_.*/Camera2",
+        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS[1], rot=CAMERA_ROT[1], convention="world"),
+        data_types=["rgb", "depth"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
+        ),
+        width=CAMERA_WIDTH,
+        height=CAMERA_HEIGHT,
+    )
+
     write_image_to_file = True
 
-    # 更新觀測空間為單一張量 [高度, 寬度, 通道數]
-    # RGB (3通道) + Depth (1通道) = 4通道
-    # observation_space = [CAMERA_HEIGHT, CAMERA_WIDTH, 4]  # [height, width, channels] for RGBD
-    observation_space = CAMERA_HEIGHT * CAMERA_WIDTH * 4 + 6
+    # 觀測空間為所有相機數據的總和 + 動作維度
+    observation_space = TOTAL_OBS_SIZE
+
     # change viewer settings
     viewer = ViewerCfg(eye=CAMERA_EYE)
 
