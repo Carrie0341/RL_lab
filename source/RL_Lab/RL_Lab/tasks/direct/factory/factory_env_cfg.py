@@ -32,7 +32,7 @@ CAMERA_ROT = [tuple(camera_quat[i].tolist()) for i in range(len(CAMERA_POS))]  #
 
 
 CAMERA_EYE = (1.0, 1.0, 1.0)  # Viewer eye position
-num_envs = 32
+num_envs = 24
 
 # 每個相機的RGBD數據大小
 CAMERA_CHANNELS = 4  # RGBD

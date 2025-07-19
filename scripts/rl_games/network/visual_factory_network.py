@@ -409,8 +409,8 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
             # 檢查輸入尺寸是否匹配
             if combined_features.size(-1) != self.rnn.input_size:
                 # 打印調試信息
-                print(f"WARNING: LSTM input size mismatch. Expected {self.rnn.input_size}, got {combined_features.size(-1)}")
-                print(f"Visual features size: {visual_features.size()}, Action features size: {action_features.size()}")
+                # print(f"WARNING: LSTM input size mismatch. Expected {self.rnn.input_size}, got {combined_features.size(-1)}")
+                # print(f"Visual features size: {visual_features.size()}, Action features size: {action_features.size()}")
 
                 # 使用線性層調整尺寸
                 if not hasattr(self, 'lstm_adapter'):
@@ -418,11 +418,11 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
                     # 使用正交初始化
                     nn.init.orthogonal_(self.lstm_adapter.weight, gain=1.4142)
                     nn.init.zeros_(self.lstm_adapter.bias)
-                    print("Created LSTM adapter layer")
+                    # print("Created LSTM adapter layer")
 
                 # 調整尺寸
                 combined_features = self.lstm_adapter(combined_features)
-                print(f"Adjusted combined features size: {combined_features.size()}")
+                # print(f"Adjusted combined features size: {combined_features.size()}")
 
             if rnn_states is None:
                 # 獲取默認的RNN狀態

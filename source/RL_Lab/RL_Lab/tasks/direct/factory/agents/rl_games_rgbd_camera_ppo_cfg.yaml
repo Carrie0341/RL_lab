@@ -96,7 +96,7 @@ params:
     normalize_input: False  # 圖像輸入已經在環境中歸一化
     normalize_value: True
     value_bootstrap: True
-    num_actors: 32  # 與factory_env_cfg.py中的num_envs匹配
+    num_actors: 24  # 與factory_env_cfg.py中的num_envs匹配
     reward_shaper:
       scale_value: 1.0
     normalize_advantage: True
@@ -116,7 +116,7 @@ params:
     truncate_grads: True
     e_clip: 0.2
     horizon_length: 128
-    minibatch_size: 256  # 減小批次大小以適應GPU內存
+    minibatch_size: 128  # 減小批次大小以適應GPU內存
     mini_epochs: 6  # 增加每批次的訓練輪數
     critic_coef: 2
     clip_value: True
@@ -125,7 +125,7 @@ params:
 
     # 中央價值網絡配置
     central_value_config:
-      minibatch_size: 256
+      minibatch_size: 128
       mini_epochs: 6
       learning_rate: 1e-4
       lr_schedule: adaptive
