@@ -124,7 +124,7 @@ class PegInsert(FactoryTask):
     held_asset_rot_init: float = 0.0
 
     # Rewards
-    keypoint_coef_baseline: list = [5, 4]
+    keypoint_coef_baseline: list = [2, 8]
     keypoint_coef_coarse: list = [50, 2]
     keypoint_coef_fine: list = [100, 0]
     # Fraction of socket height.
