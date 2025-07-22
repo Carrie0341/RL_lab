@@ -528,7 +528,35 @@ class FactoryEnv(DirectRLEnv):
 
         for rew_name, rew in rew_dict.items():
             self.extras[f"logs_rew_{rew_name}"] = rew.mean()
+        # Save reward details to file
+        # Create a dictionary with all reward components
+        reward_data = {
+            "kp_baseline": rew_dict["kp_baseline"].mean().item(),
+            "kp_coarse": rew_dict["kp_coarse"].mean().item(),
+            "kp_fine": rew_dict["kp_fine"].mean().item(),
+            "action_penalty": (rew_dict["action_penalty"] * self.cfg_task.action_penalty_scale).mean().item(),
+            "action_grad_penalty": (rew_dict["action_grad_penalty"] * self.cfg_task.action_grad_penalty_scale).mean().item(),
+            "curr_engaged": rew_dict["curr_engaged"].mean().item(),
+            "curr_successes": rew_dict["curr_successes"].mean().item(),
+            "total_reward": rew_buf.mean().item(),
+            "timestep": self.episode_length_buf[0].item()
+        }
 
+        # Write reward data to file
+        import os
+        import json
+
+        # Create directory if it doesn't exist
+        os.makedirs("reward_logs", exist_ok=True)
+
+        # Append to the reward log file
+        with open("reward_logs/reward_components.jsonl", "a") as f:
+            f.write(json.dumps(reward_data) + "\n")
+
+        # Log rewards as extras for tensorboard visualization
+        for rew_name, rew in rew_dict.items():
+            self.extras[f"logs_rew_{rew_name}"] = rew.mean()
+        print(f"Rewards: {rew_buf.mean().item()}")
         return rew_buf
 
     def _reset_idx(self, env_ids):
