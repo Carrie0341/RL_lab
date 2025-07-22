@@ -551,13 +551,17 @@ class FactoryEnv(DirectRLEnv):
 
         # Append to the reward log file
         with open("reward_logs/reward_components.jsonl", "a") as f:
+            # Add current epoch number to the reward data
+            reward_data["epoch"] = self.episode_length_buf[0].item()-1//128 +1
+            
+            # Write the reward data to the file
             f.write(json.dumps(reward_data) + "\n")
 
         # Log rewards as extras for tensorboard visualization
         for rew_name, rew in rew_dict.items():
             self.extras[f"logs_rew_{rew_name}"] = rew.mean()
         # Print detailed reward components
-        reward_str = f"Rewards: {rew_buf.mean().item():.4f} | kp_baseline: {rew_dict['kp_baseline'].mean().item():.4f}, kp_coarse: {rew_dict['kp_coarse'].mean().item():.4f}, kp_fine: {rew_dict['kp_fine'].mean().item():.4f}, action_penalty: {(rew_dict['action_penalty'] * self.cfg_task.action_penalty_scale).mean().item():.4f}, action_grad_penalty: {(rew_dict['action_grad_penalty'] * self.cfg_task.action_grad_penalty_scale).mean().item():.4f}, engaged: {rew_dict['curr_engaged'].mean().item():.4f}, success: {rew_dict['curr_successes'].mean().item():.4f}"
+        reward_str = f"Epoch {self.episode_length_buf[0].item()-1//128 +1}| Rewards: {rew_buf.mean().item():.4f} | kp_baseline: {rew_dict['kp_baseline'].mean().item():.4f}, kp_coarse: {rew_dict['kp_coarse'].mean().item():.4f}, kp_fine: {rew_dict['kp_fine'].mean().item():.4f}, action_penalty: {(rew_dict['action_penalty'] * self.cfg_task.action_penalty_scale).mean().item():.4f}, action_grad_penalty: {(rew_dict['action_grad_penalty'] * self.cfg_task.action_grad_penalty_scale).mean().item():.4f}, engaged: {rew_dict['curr_engaged'].mean().item():.4f}, success: {rew_dict['curr_successes'].mean().item():.4f}"
         print(reward_str)
         return rew_buf
 

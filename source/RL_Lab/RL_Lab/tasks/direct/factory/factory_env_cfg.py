@@ -23,9 +23,14 @@ CAMERA_WIDTH = 128
 CAMERA_HEIGHT = 128
 
 # 定義多個相機視角
-CAMERA_POS = [(1.1, 0, .3), (0.4, .8, .6)]
-roll = [torch.tensor(0), torch.tensor(0)]  # X軸旋轉45度
-pitch = [torch.tensor(math.pi / 8), torch.tensor(math.pi / 8)]
+#  1.(x正後 y正? z正上) 2.(x正左 y正後 z正上)
+CAMERA_POS = [(.9, 0, .2), (0.45, .7, .4)]
+
+roll = [torch.tensor(0), torch.tensor(0)] 
+
+# 1.(值越大角度越低 => 數字小角度低) 2.(值越大角度越高 => 數字小角度高)
+pitch = [torch.tensor(2*math.pi / 12), torch.tensor(2*math.pi / 10)]
+
 yaw = [torch.tensor(math.pi), torch.tensor(math.pi / 2)]
 camera_quat = [quat_from_euler_xyz(roll[i], pitch[i], -yaw[i]) for i in range(len(CAMERA_POS))]
 CAMERA_ROT = [tuple(camera_quat[i].tolist()) for i in range(len(CAMERA_POS))]  # 轉換為元組格式 (w, x, y, z)
