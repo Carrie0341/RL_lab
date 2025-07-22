@@ -158,6 +158,18 @@ class FactoryCameraEnv(FactoryEnv):
                         depth_img_data = depth_img_data.astype(np.uint8)
                         depth_img = Image.fromarray(depth_img_data, mode="L")
                         depth_img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_depth.png")
+
+                        # 保存帶有深度值的可視化圖像
+                        import matplotlib.pyplot as plt
+                        depth_img_data_with_values = camera_data[image_index, :, :, 3].detach().cpu().numpy()
+                        fig, ax = plt.subplots(figsize=(10, 8))
+                        im = ax.imshow(depth_img_data_with_values, cmap='viridis')
+                        cbar = plt.colorbar(im)
+                        cbar.set_label('Depth Value')
+                        plt.title(f'Depth Values - Frame {self.episode_length_buf[0]} Index {image_index}')
+                        plt.savefig(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_depth_values.png", dpi=150, bbox_inches='tight')
+                        plt.close(fig)
+
                     elif data_type == "rgb":
                         img_data = camera_data[image_index].detach().cpu().numpy()
                         img_data = np.clip(img_data * std[image_index].cpu().numpy()
