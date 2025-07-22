@@ -67,6 +67,7 @@ datasets
 # Tests
 tests/
 debug_images/
+reward_logs/
 
 # Docker history
 .isaac-lab-docker-history
