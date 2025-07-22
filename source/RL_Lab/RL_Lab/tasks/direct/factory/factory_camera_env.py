@@ -53,10 +53,15 @@ class FactoryCameraEnv(FactoryEnv):
             rgb_std1 = torch.std(rgb_data1, dim=(1, 2), keepdim=True) + 1e-6
             rgb_data1 = (rgb_data1 - rgb_mean1) / rgb_std1
 
-            depth_data1 = self._tiled_camera_1.data.output["depth"]
-            depth_data1[depth_data1 == float("inf")] = 0.0
-            max_depth = self.cfg.tiled_camera_1.spawn.clipping_range[1]
-            depth_data1 = depth_data1 / max_depth
+            # 獲取原始深度數據
+            raw_depth_data1 = self._tiled_camera_1.data.output["depth"]
+            raw_depth_data1[raw_depth_data1 == float("inf")] = 0.0
+            
+            # 修改：使用新的深度處理方法 - 限制範圍在0.2~1.2米之間
+            max_depth1 = self.cfg.tiled_camera_1.spawn.clipping_range[1]
+            # 將深度值限制在0.2~1.2米範圍內，然後正規化到[0,1]
+            depth_data1 = torch.clamp(raw_depth_data1, min=0.2, max=1.2)
+            depth_data1 = (depth_data1 - 0.2) / 1.0  # 從[0.2,1.2]正規化到[0,1]
 
             # 處理第二個相機
             rgb_data2 = self._tiled_camera_2.data.output["rgb"] / 255.0
@@ -64,10 +69,15 @@ class FactoryCameraEnv(FactoryEnv):
             rgb_std2 = torch.std(rgb_data2, dim=(1, 2), keepdim=True) + 1e-6
             rgb_data2 = (rgb_data2 - rgb_mean2) / rgb_std2
 
-            depth_data2 = self._tiled_camera_2.data.output["depth"]
-            depth_data2[depth_data2 == float("inf")] = 0.0
-            max_depth = self.cfg.tiled_camera_2.spawn.clipping_range[1]
-            depth_data2 = depth_data2 / max_depth
+            # 獲取原始深度數據
+            raw_depth_data2 = self._tiled_camera_2.data.output["depth"]
+            raw_depth_data2[raw_depth_data2 == float("inf")] = 0.0
+            
+            # 修改：使用新的深度處理方法 - 限制範圍在0.2~1.2米之間
+            max_depth2 = self.cfg.tiled_camera_2.spawn.clipping_range[1]
+            # 將深度值限制在0.2~1.2米範圍內，然後正規化到[0,1]
+            depth_data2 = torch.clamp(raw_depth_data2, min=0.2, max=1.2)
+            depth_data2 = (depth_data2 - 0.2) / 1.0  # 從[0.2,1.2]正規化到[0,1]
 
             # 合併RGB和Depth為RGBD
             camera_data1 = torch.cat([rgb_data1, depth_data1], dim=-1)  # [B, H, W, 4]
@@ -86,92 +96,13 @@ class FactoryCameraEnv(FactoryEnv):
 
             # 可選：保存圖像到文件進行調試
             if hasattr(self.cfg, 'write_image_to_file') and self.cfg.write_image_to_file and self.episode_length_buf[0] % 100 == 0:
-                self._save_debug_images(camera_data1, camera_data2, rgb_data1, rgb_data2, depth_data1, depth_data2, rgb_mean1, rgb_std1, rgb_mean2, rgb_std2)
+                # 保存原始深度數據以便在_save_debug_images中使用
+                self._save_debug_images(camera_data1, camera_data2, rgb_data1, rgb_data2, depth_data1, depth_data2, 
+                                    rgb_mean1, rgb_std1, rgb_mean2, rgb_std2, raw_depth_data1, raw_depth_data2)
 
         else:
-            # 單相機處理邏輯（保持原有代碼）
-            data_type = self.cfg.tiled_camera_front.data_types[0]  # 使用配置中的第一個數據類型
-
-            if self.is_rgbd_task:
-                # 分別處理 RGB 和 Depth 圖像
-                rgb_data = self._tiled_camera_front.data.output["rgb"] / 255.0
-                # 標準化 RGB 數據
-                rgb_mean = torch.mean(rgb_data, dim=(1, 2), keepdim=True)
-                rgb_std = torch.std(rgb_data, dim=(1, 2), keepdim=True) + 1e-6  # 避免除以零
-                rgb_data = (rgb_data - rgb_mean) / rgb_std
-
-                depth_data = self._tiled_camera_front.data.output["depth"]
-                # 處理無限深度值
-                depth_data[depth_data == float("inf")] = 0.0
-                # 歸一化深度值到 [0, 1] 範圍
-                max_depth = self.cfg.tiled_camera_front.spawn.clipping_range[1]
-                depth_data = depth_data / max_depth
-
-                # 將 RGB 和 Depth 合併為一個張量
-                camera_data = torch.cat([rgb_data, depth_data], dim=-1)  # [B, H, W, 4]
-            elif data_type == "rgb":
-                # 獲取RGB圖像並歸一化到[0,1]範圍
-                camera_data = self._tiled_camera_front.data.output[data_type] / 255.0
-                # 標準化處理
-                mean = torch.mean(camera_data, dim=(1, 2), keepdim=True)
-                std = torch.std(camera_data, dim=(1, 2), keepdim=True) + 1e-6  # 避免除以零
-                camera_data = (camera_data - mean) / std
-            elif data_type == "depth":
-                # 獲取深度圖像
-                camera_data = self._tiled_camera_front.data.output[data_type]
-                # 處理無限深度值
-                camera_data[camera_data == float("inf")] = 0.0
-                # 歸一化深度值到 [0, 1] 範圍
-                max_depth = self.cfg.tiled_camera_front.spawn.clipping_range[1]
-                camera_data = camera_data / max_depth
-            else:
-                raise ValueError(f"Unsupported camera data type: {data_type}")
-
-            # 獲取前一步動作
-            prev_actions = self.actions.clone()
-
-            # 修改：將相機數據攤平並與前一步動作連接成一個張量
-            batch_size = camera_data.shape[0]
-            camera_data_flat = camera_data.reshape(batch_size, -1)  # 攤平相機數據
-
-            # 連接相機數據和前一步動作
-            policy_obs = torch.cat([camera_data_flat, prev_actions], dim=1)
-
-            # 可選：保存圖像到文件進行調試
-            if hasattr(self.cfg, 'write_image_to_file') and self.cfg.write_image_to_file and self.episode_length_buf[0] % 100 == 0:
-                import os
-                import numpy as np
-                from PIL import Image
-                os.makedirs("debug_images", exist_ok=True)
-                for image_index in range(min(self.num_envs, 5)):  # 只保存前5個環境的圖像以節省空間
-                    if self.is_rgbd_task:
-                        # 保存 RGB 和 Depth 圖像
-                        rgb_img_data = camera_data[image_index, :, :, :3].detach().cpu().numpy()
-                        # 反標準化 RGB 數據
-                        rgb_img_data = np.clip(rgb_img_data * rgb_std[image_index].cpu().numpy()
-                                               + rgb_mean[image_index].cpu().numpy(), 0, 1) * 255
-                        rgb_img_data = rgb_img_data.astype(np.uint8)
-                        rgb_img = Image.fromarray(rgb_img_data)
-                        rgb_img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_rgb.png")
-
-                        depth_img_data = camera_data[image_index, :, :, 3].detach().cpu().numpy() * 255
-                        depth_img_data = depth_img_data.astype(np.uint8)
-                        depth_img = Image.fromarray(depth_img_data, mode="L")
-                        depth_img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_depth.png")
-
-
-                    elif data_type == "rgb":
-                        img_data = camera_data[image_index].detach().cpu().numpy()
-                        img_data = np.clip(img_data * std[image_index].cpu().numpy()
-                                           + mean[image_index].cpu().numpy(), 0, 1) * 255
-                        img_data = img_data.astype(np.uint8)
-                        img = Image.fromarray(img_data)
-                        img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_rgb.png")
-                    else:  # depth
-                        img_data = (camera_data[image_index].detach().cpu().numpy() * 255).astype(np.uint8).squeeze()
-                        img = Image.fromarray(img_data, mode="L")
-                        img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_depth.png")
-
+           assert False, "This environment is configured for multi-camera tasks only."
+           
         # 獲取critic的狀態向量（與原始FactoryEnv相同）
         state_dict = {
             "fingertip_pos": self.fingertip_midpoint_pos,
@@ -195,8 +126,10 @@ class FactoryCameraEnv(FactoryEnv):
 
         # 返回攤平的張量給policy，狀態向量給critic
         return {"policy": policy_obs, "critic": state_tensors}
-
-    def _save_debug_images(self, camera_data1, camera_data2, rgb_data1, rgb_data2, depth_data1, depth_data2, rgb_mean1, rgb_std1, rgb_mean2, rgb_std2):
+    
+    
+    def _save_debug_images(self, camera_data1, camera_data2, rgb_data1, rgb_data2, depth_data1, depth_data2, 
+                        rgb_mean1, rgb_std1, rgb_mean2, rgb_std2, raw_depth_data1=None, raw_depth_data2=None):
         """保存調試圖像到文件"""
         import os
         import numpy as np
@@ -214,12 +147,16 @@ class FactoryCameraEnv(FactoryEnv):
             rgb_img_data1 = rgb_img_data1.astype(np.uint8)
             rgb_img1 = Image.fromarray(rgb_img_data1)
             rgb_img1.save(f"debug_images/frame_{self.episode_length_buf[0]}_cam1_index_{image_index}_rgb.png")
+            
+            # 新增：RGB轉灰階圖像
+            rgb_gray_img1 = Image.fromarray(rgb_img_data1).convert('L')
+            rgb_gray_img1.save(f"debug_images/frame_{self.episode_length_buf[0]}_cam1_index_{image_index}_rgb_gray.png")
 
-            # Depth
+            # Depth - 新的處理方式（0.2-1.2米範圍）
             depth_img_data1 = depth_data1[image_index].detach().cpu().numpy() * 255
             depth_img_data1 = depth_img_data1.astype(np.uint8).squeeze()
             depth_img1 = Image.fromarray(depth_img_data1, mode="L")
-            depth_img1.save(f"debug_images/frame_{self.episode_length_buf[0]}_cam1_index_{image_index}_depth.png")
+            depth_img1.save(f"debug_images/frame_{self.episode_length_buf[0]}_cam1_index_{image_index}_depth_new.png")
 
             # 保存第二個相機的圖像
             # RGB
@@ -229,79 +166,58 @@ class FactoryCameraEnv(FactoryEnv):
             rgb_img_data2 = rgb_img_data2.astype(np.uint8)
             rgb_img2 = Image.fromarray(rgb_img_data2)
             rgb_img2.save(f"debug_images/frame_{self.episode_length_buf[0]}_cam2_index_{image_index}_rgb.png")
+            
+            # 新增：RGB轉灰階圖像
+            rgb_gray_img2 = Image.fromarray(rgb_img_data2).convert('L')
+            rgb_gray_img2.save(f"debug_images/frame_{self.episode_length_buf[0]}_cam2_index_{image_index}_rgb_gray.png")
 
-            # Depth
+            # Depth - 新的處理方式（0.2-1.2米範圍）
             depth_img_data2 = depth_data2[image_index].detach().cpu().numpy() * 255
             depth_img_data2 = depth_img_data2.astype(np.uint8).squeeze()
             depth_img2 = Image.fromarray(depth_img_data2, mode="L")
-            depth_img2.save(f"debug_images/frame_{self.episode_length_buf[0]}_cam2_index_{image_index}_depth.png")
+            depth_img2.save(f"debug_images/frame_{self.episode_length_buf[0]}_cam2_index_{image_index}_depth_new.png")
             
-            # 獲取原始深度值（未正規化）
-            max_depth1 = self.cfg.tiled_camera_1.spawn.clipping_range[1]
-            max_depth2 = self.cfg.tiled_camera_2.spawn.clipping_range[1]
-            
-            # 獲取原始深度數據（乘以最大深度以還原真實值）
-            raw_depth_np1 = depth_data1[image_index].detach().cpu().numpy().squeeze() * max_depth1
-            raw_depth_np2 = depth_data2[image_index].detach().cpu().numpy().squeeze() * max_depth2
-            
-            # 保存原始深度值的熱力圖
-            plt.figure(figsize=(10, 5))
-            
-            # 第一個相機原始深度圖
-            plt.subplot(1, 2, 1)
-            # 使用自定義範圍以突出前景物體
-            # 可以根據您的需求調整 vmin 和 vmax 的值
-            depth_map1_raw = plt.imshow(raw_depth_np1, cmap='plasma', vmin=0, vmax=2.0)  # 假設前景物體在0-2米範圍內
-            plt.colorbar(depth_map1_raw, label='Depth (meters)')
-            plt.title(f'Camera 1 Raw Depth - Frame {self.episode_length_buf[0]}')
-            
-            # 第二個相機原始深度圖
-            plt.subplot(1, 2, 2)
-            depth_map2_raw = plt.imshow(raw_depth_np2, cmap='plasma', vmin=0, vmax=2.0)  # 同樣假設前景物體在0-2米範圍內
-            plt.colorbar(depth_map2_raw, label='Depth (meters)')
-            plt.title(f'Camera 2 Raw Depth - Frame {self.episode_length_buf[0]}')
-            
-            plt.tight_layout()
-            plt.savefig(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_raw_depth_heatmap.png", dpi=150)
-            plt.close()
-            
-            # 保存前景區域的特寫深度圖（聚焦在近距離物體）
-            plt.figure(figsize=(10, 5))
-            
-            # 第一個相機前景深度圖
-            plt.subplot(1, 2, 1)
-            # 更窄的範圍以突出前景物體的細節
-            depth_map1_foreground = plt.imshow(raw_depth_np1, cmap='plasma', vmin=0, vmax=0.5)  # 假設前景物體在0-0.5米範圍內
-            plt.colorbar(depth_map1_foreground, label='Depth (meters)')
-            plt.title(f'Camera 1 Foreground Depth - Frame {self.episode_length_buf[0]}')
-            
-            # 第二個相機前景深度圖
-            plt.subplot(1, 2, 2)
-            depth_map2_foreground = plt.imshow(raw_depth_np2, cmap='plasma', vmin=0, vmax=0.5)  # 同樣假設前景物體在0-0.5米範圍內
-            plt.colorbar(depth_map2_foreground, label='Depth (meters)')
-            plt.title(f'Camera 2 Foreground Depth - Frame {self.episode_length_buf[0]}')
-            
-            plt.tight_layout()
-            plt.savefig(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_foreground_depth_heatmap.png", dpi=150)
-            plt.close()
-            
-            # 保存正規化的深度熱力圖（原有的）
-            plt.figure(figsize=(10, 5))
-            
-            # 第一個相機深度圖
-            depth_np1 = depth_data1[image_index].detach().cpu().numpy().squeeze()
-            plt.subplot(1, 2, 1)
-            depth_map1 = plt.imshow(depth_np1, cmap='plasma')
-            plt.colorbar(depth_map1, label='Depth (normalized)')
-            plt.title(f'Camera 1 Depth Map - Frame {self.episode_length_buf[0]}')
-            
-            # 第二個相機深度圖
-            depth_np2 = depth_data2[image_index].detach().cpu().numpy().squeeze()
-            plt.subplot(1, 2, 2)
-            depth_map2 = plt.imshow(depth_np2, cmap='plasma')
-            plt.colorbar(depth_map2, label='Depth (normalized)')
-            plt.title(f'Camera 2 Depth Map - Frame {self.episode_length_buf[0]}')
-            
-            plt.tight_layout()
-            plt.savefig(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_depth_heatmap.png", dpi=150)
-            plt.close()
+            # 如果提供了原始深度數據，則創建各種深度可視化
+            if raw_depth_data1 is not None and raw_depth_data2 is not None:
+                # 獲取原始深度值
+                raw_depth_np1 = raw_depth_data1[image_index].detach().cpu().numpy().squeeze()
+                raw_depth_np2 = raw_depth_data2[image_index].detach().cpu().numpy().squeeze()
+                
+                # 保存原始深度值的熱力圖
+                plt.figure(figsize=(10, 5))
+                
+                # 第一個相機原始深度圖
+                plt.subplot(1, 2, 1)
+                depth_map1_raw = plt.imshow(raw_depth_np1, cmap='plasma', vmin=0, vmax=2.0)
+                plt.colorbar(depth_map1_raw, label='Depth (meters)')
+                plt.title(f'Camera 1 Raw Depth - Frame {self.episode_length_buf[0]}')
+                
+                # 第二個相機原始深度圖
+                plt.subplot(1, 2, 2)
+                depth_map2_raw = plt.imshow(raw_depth_np2, cmap='plasma', vmin=0, vmax=2.0)
+                plt.colorbar(depth_map2_raw, label='Depth (meters)')
+                plt.title(f'Camera 2 Raw Depth - Frame {self.episode_length_buf[0]}')
+                
+                plt.tight_layout()
+                plt.savefig(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_raw_depth_heatmap.png", dpi=150)
+                plt.close()
+                
+                # 保存新的深度處理方式的熱力圖（0.2-1.2米範圍）
+                plt.figure(figsize=(10, 5))
+                
+                # 第一個相機的新深度處理
+                plt.subplot(1, 2, 1)
+                # 顯示限制在0.2-1.2米範圍內的深度值
+                depth_map1_new = plt.imshow(np.clip(raw_depth_np1, 0.2, 1.2), cmap='turbo', vmin=0.2, vmax=1.2)
+                plt.colorbar(depth_map1_new, label='Depth (meters)')
+                plt.title(f'Camera 1 New Depth (0.2-1.2m) - Frame {self.episode_length_buf[0]}')
+                
+                # 第二個相機的新深度處理
+                plt.subplot(1, 2, 2)
+                depth_map2_new = plt.imshow(np.clip(raw_depth_np2, 0.2, 1.2), cmap='turbo', vmin=0.2, vmax=1.2)
+                plt.colorbar(depth_map2_new, label='Depth (meters)')
+                plt.title(f'Camera 2 New Depth (0.2-1.2m) - Frame {self.episode_length_buf[0]}')
+                
+                plt.tight_layout()
+                plt.savefig(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_new_depth_range_heatmap.png", dpi=150)
+                plt.close()                
