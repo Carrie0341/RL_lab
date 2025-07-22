@@ -159,16 +159,6 @@ class FactoryCameraEnv(FactoryEnv):
                         depth_img = Image.fromarray(depth_img_data, mode="L")
                         depth_img.save(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_depth.png")
 
-                        # 保存帶有深度值的可視化圖像
-                        import matplotlib.pyplot as plt
-                        depth_img_data_with_values = camera_data[image_index, :, :, 3].detach().cpu().numpy()
-                        fig, ax = plt.subplots(figsize=(10, 8))
-                        im = ax.imshow(depth_img_data_with_values, cmap='viridis')
-                        cbar = plt.colorbar(im)
-                        cbar.set_label('Depth Value')
-                        plt.title(f'Depth Values - Frame {self.episode_length_buf[0]} Index {image_index}')
-                        plt.savefig(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_depth_values.png", dpi=150, bbox_inches='tight')
-                        plt.close(fig)
 
                     elif data_type == "rgb":
                         img_data = camera_data[image_index].detach().cpu().numpy()
@@ -211,6 +201,8 @@ class FactoryCameraEnv(FactoryEnv):
         import os
         import numpy as np
         from PIL import Image
+        import matplotlib.pyplot as plt
+        import matplotlib.cm as cm
 
         os.makedirs("debug_images", exist_ok=True)
         for image_index in range(min(self.num_envs, 5)):  # 只保存前5個環境的圖像以節省空間
@@ -243,3 +235,73 @@ class FactoryCameraEnv(FactoryEnv):
             depth_img_data2 = depth_img_data2.astype(np.uint8).squeeze()
             depth_img2 = Image.fromarray(depth_img_data2, mode="L")
             depth_img2.save(f"debug_images/frame_{self.episode_length_buf[0]}_cam2_index_{image_index}_depth.png")
+            
+            # 獲取原始深度值（未正規化）
+            max_depth1 = self.cfg.tiled_camera_1.spawn.clipping_range[1]
+            max_depth2 = self.cfg.tiled_camera_2.spawn.clipping_range[1]
+            
+            # 獲取原始深度數據（乘以最大深度以還原真實值）
+            raw_depth_np1 = depth_data1[image_index].detach().cpu().numpy().squeeze() * max_depth1
+            raw_depth_np2 = depth_data2[image_index].detach().cpu().numpy().squeeze() * max_depth2
+            
+            # 保存原始深度值的熱力圖
+            plt.figure(figsize=(10, 5))
+            
+            # 第一個相機原始深度圖
+            plt.subplot(1, 2, 1)
+            # 使用自定義範圍以突出前景物體
+            # 可以根據您的需求調整 vmin 和 vmax 的值
+            depth_map1_raw = plt.imshow(raw_depth_np1, cmap='plasma', vmin=0, vmax=2.0)  # 假設前景物體在0-2米範圍內
+            plt.colorbar(depth_map1_raw, label='Depth (meters)')
+            plt.title(f'Camera 1 Raw Depth - Frame {self.episode_length_buf[0]}')
+            
+            # 第二個相機原始深度圖
+            plt.subplot(1, 2, 2)
+            depth_map2_raw = plt.imshow(raw_depth_np2, cmap='plasma', vmin=0, vmax=2.0)  # 同樣假設前景物體在0-2米範圍內
+            plt.colorbar(depth_map2_raw, label='Depth (meters)')
+            plt.title(f'Camera 2 Raw Depth - Frame {self.episode_length_buf[0]}')
+            
+            plt.tight_layout()
+            plt.savefig(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_raw_depth_heatmap.png", dpi=150)
+            plt.close()
+            
+            # 保存前景區域的特寫深度圖（聚焦在近距離物體）
+            plt.figure(figsize=(10, 5))
+            
+            # 第一個相機前景深度圖
+            plt.subplot(1, 2, 1)
+            # 更窄的範圍以突出前景物體的細節
+            depth_map1_foreground = plt.imshow(raw_depth_np1, cmap='plasma', vmin=0, vmax=0.5)  # 假設前景物體在0-0.5米範圍內
+            plt.colorbar(depth_map1_foreground, label='Depth (meters)')
+            plt.title(f'Camera 1 Foreground Depth - Frame {self.episode_length_buf[0]}')
+            
+            # 第二個相機前景深度圖
+            plt.subplot(1, 2, 2)
+            depth_map2_foreground = plt.imshow(raw_depth_np2, cmap='plasma', vmin=0, vmax=0.5)  # 同樣假設前景物體在0-0.5米範圍內
+            plt.colorbar(depth_map2_foreground, label='Depth (meters)')
+            plt.title(f'Camera 2 Foreground Depth - Frame {self.episode_length_buf[0]}')
+            
+            plt.tight_layout()
+            plt.savefig(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_foreground_depth_heatmap.png", dpi=150)
+            plt.close()
+            
+            # 保存正規化的深度熱力圖（原有的）
+            plt.figure(figsize=(10, 5))
+            
+            # 第一個相機深度圖
+            depth_np1 = depth_data1[image_index].detach().cpu().numpy().squeeze()
+            plt.subplot(1, 2, 1)
+            depth_map1 = plt.imshow(depth_np1, cmap='plasma')
+            plt.colorbar(depth_map1, label='Depth (normalized)')
+            plt.title(f'Camera 1 Depth Map - Frame {self.episode_length_buf[0]}')
+            
+            # 第二個相機深度圖
+            depth_np2 = depth_data2[image_index].detach().cpu().numpy().squeeze()
+            plt.subplot(1, 2, 2)
+            depth_map2 = plt.imshow(depth_np2, cmap='plasma')
+            plt.colorbar(depth_map2, label='Depth (normalized)')
+            plt.title(f'Camera 2 Depth Map - Frame {self.episode_length_buf[0]}')
+            
+            plt.tight_layout()
+            plt.savefig(f"debug_images/frame_{self.episode_length_buf[0]}_index_{image_index}_depth_heatmap.png", dpi=150)
+            plt.close()
