@@ -308,7 +308,7 @@ class FactoryRGBDCameraEnvCfg(FactoryEnvCfg):
         height=CAMERA_HEIGHT,
     )
 
-    write_image_to_file = True
+    write_image_to_file = False
 
     # 觀測空間為所有相機數據的總和 + 動作維度
     observation_space = TOTAL_OBS_SIZE
