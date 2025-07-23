@@ -15,7 +15,7 @@ LATEST_EVENT=$(find $BASE_LOG_DIR -name "events.out.tfevents*" -type f -printf "
 if [ -z "$LATEST_EVENT" ]; then
     echo "找不到任何 events.out.tfevents 檔案，將使用整個日誌目錄"
     echo "啟動 TensorBoard..."
-    tensorboard --logdir=$BASE_LOG_DIR
+    tensorboard --logdir=$BASE_LOG_DIR --port 6009
 else
     # 取得包含最新事件檔案的目錄
     EVENT_DIR=$(dirname "$LATEST_EVENT")
@@ -24,5 +24,5 @@ else
     echo "啟動 TensorBoard..."
     
     # 使用包含最新事件檔案的目錄啟動 TensorBoard
-    tensorboard --logdir=$EVENT_DIR
+    tensorboard --logdir=$EVENT_DIR --port 6009
 fi
