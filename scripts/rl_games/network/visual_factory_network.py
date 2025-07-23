@@ -228,6 +228,28 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
         nn.init.orthogonal_(self.value.weight, gain=1.0)
         nn.init.zeros_(self.value.bias)
 
+        # 預先創建可能需要的備用編碼器
+        fallback_encoder = []
+        input_size = self.camera_size  # 使用預設值
+        hidden_sizes = [512, 256, 128]
+
+        for i, hidden_size in enumerate(hidden_sizes):
+            if i == 0:
+                fallback_encoder.append(nn.Linear(input_size, hidden_size))
+            else:
+                fallback_encoder.append(nn.Linear(hidden_sizes[i - 1], hidden_size))
+            fallback_encoder.append(nn.ELU())
+
+        self.fallback_encoder = nn.Sequential(*fallback_encoder).to(self.device)
+        
+        # 如果使用 LSTM，創建適配層
+        if self._is_rnn:
+            # 預設輸入尺寸
+            self.lstm_adapter = nn.Linear(combined_features_size, self.rnn.input_size).to(self.device)
+            # 使用正交初始化
+            nn.init.orthogonal_(self.lstm_adapter.weight, gain=1.4142)
+            nn.init.zeros_(self.lstm_adapter.bias)
+
     def _build_conv_encoder(self, params):
         """構建卷積編碼器"""
         visual_encoder = []
@@ -377,21 +399,6 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
                     visual_features = self.visual_encoder(camera_data)
                     visual_features = visual_features.reshape(batch_size, -1)  # 扁平化
             except RuntimeError as e:
-                # 如果沒有備用編碼器，創建一個
-                if not hasattr(self, 'fallback_encoder'):
-                    fallback_encoder = []
-                    input_size = camera_data.shape[1]
-                    hidden_sizes = [512, 256, 128]
-
-                    for i, hidden_size in enumerate(hidden_sizes):
-                        if i == 0:
-                            fallback_encoder.append(nn.Linear(input_size, hidden_size))
-                        else:
-                            fallback_encoder.append(nn.Linear(hidden_sizes[i - 1], hidden_size))
-                        fallback_encoder.append(nn.ELU())
-
-                    self.fallback_encoder = nn.Sequential(*fallback_encoder).to(device)
-
                 # 使用備用編碼器
                 visual_features = self.fallback_encoder(camera_data)
 
@@ -408,21 +415,8 @@ class VisualFactoryNetwork(network_builder.NetworkBuilder.BaseNetwork):
 
             # 檢查輸入尺寸是否匹配
             if combined_features.size(-1) != self.rnn.input_size:
-                # 打印調試信息
-                # print(f"WARNING: LSTM input size mismatch. Expected {self.rnn.input_size}, got {combined_features.size(-1)}")
-                # print(f"Visual features size: {visual_features.size()}, Action features size: {action_features.size()}")
-
-                # 使用線性層調整尺寸
-                if not hasattr(self, 'lstm_adapter'):
-                    self.lstm_adapter = nn.Linear(combined_features.size(-1), self.rnn.input_size).to(device)
-                    # 使用正交初始化
-                    nn.init.orthogonal_(self.lstm_adapter.weight, gain=1.4142)
-                    nn.init.zeros_(self.lstm_adapter.bias)
-                    # print("Created LSTM adapter layer")
-
-                # 調整尺寸
+                # 使用適配層調整尺寸
                 combined_features = self.lstm_adapter(combined_features)
-                # print(f"Adjusted combined features size: {combined_features.size()}")
 
             if rnn_states is None:
                 # 獲取默認的RNN狀態
