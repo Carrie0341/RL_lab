@@ -38,6 +38,8 @@ class FactoryEnv(DirectRLEnv):
 
         self.cfg_task = cfg.task
 
+        self.counter = 0
+
         super().__init__(cfg, render_mode, **kwargs)
 
         self._set_body_inertias()
@@ -528,13 +530,13 @@ class FactoryEnv(DirectRLEnv):
 
         for rew_name, rew in rew_dict.items():
             self.extras[f"logs_rew_{rew_name}"] = rew.mean()
-        self.extras[f"logs_rew_kp_dist"] =self.keypoint_dist
+        self.extras[f"logs_rew_kp_dist"] = self.keypoint_dist
         # Save reward details to file
         # Create a dictionary with all reward components
         reward_data = {
-            "epoch": (self.episode_length_buf[0].item() - 1) // 128 + 1,  # Epoch number
+            "epoch": self.counter.item() // 128 + 1,  # Epoch number
             "total_reward": round(rew_buf.mean().item(), 4),
-            "keypoint_dist":round(self.keypoint_dist, 4),
+            "keypoint_dist": round(self.keypoint_dist.mean().item(), 4),
             "kp_baseline": round(rew_dict["kp_baseline"].mean().item(), 4),
             "kp_coarse": round(rew_dict["kp_coarse"].mean().item(), 4),
             "kp_fine": round(rew_dict["kp_fine"].mean().item(), 4),
@@ -544,7 +546,7 @@ class FactoryEnv(DirectRLEnv):
             "curr_successes": round(rew_dict["curr_successes"].mean().item(), 4),
             "timestep": self.episode_length_buf[0].item()
         }
-
+        self.counter += 1
         # Write reward data to file
         import os
         import json
@@ -561,7 +563,7 @@ class FactoryEnv(DirectRLEnv):
         for rew_name, rew in rew_dict.items():
             self.extras[f"logs_rew_{rew_name}"] = rew.mean()
         # Print detailed reward components
-        reward_str = f"Epoch {(self.episode_length_buf[0].item()-1)//128 +1}| Rewards: {rew_buf.mean().item():.4f} | keypoint_dist: {self.keypoint_dist} | kp_baseline: {rew_dict['kp_baseline'].mean().item():.4f}, kp_coarse: {rew_dict['kp_coarse'].mean().item():.4f}, kp_fine: {rew_dict['kp_fine'].mean().item():.4f}, action_penalty: {(rew_dict['action_penalty'] * self.cfg_task.action_penalty_scale).mean().item():.4f}, action_grad_penalty: {(rew_dict['action_grad_penalty'] * self.cfg_task.action_grad_penalty_scale).mean().item():.4f}, engaged: {rew_dict['curr_engaged'].mean().item():.4f}, success: {rew_dict['curr_successes'].mean().item():.4f}"
+        reward_str = f"Epoch {self.counter // 128 + 1}| Rewards: {rew_buf.mean().item():.4f} | keypoint_dist: {self.keypoint_dist.mean().item():.4f} | kp_baseline: {rew_dict['kp_baseline'].mean().item():.4f}, kp_coarse: {rew_dict['kp_coarse'].mean().item():.4f}, kp_fine: {rew_dict['kp_fine'].mean().item():.4f}, action_penalty: {(rew_dict['action_penalty'] * self.cfg_task.action_penalty_scale).mean().item():.4f}, action_grad_penalty: {(rew_dict['action_grad_penalty'] * self.cfg_task.action_grad_penalty_scale).mean().item():.4f}, engaged: {rew_dict['curr_engaged'].mean().item():.4f}, success: {rew_dict['curr_successes'].mean().item():.4f}"
         print(reward_str)
         return rew_buf
 
