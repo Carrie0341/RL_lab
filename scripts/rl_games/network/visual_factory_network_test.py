@@ -18,8 +18,8 @@ class VisualFactoryTestNetwork(network_builder.NetworkBuilder.BaseNetwork):
         self.action_dim = 6  # 固定動作維度
 
         # 固定相機參數
-        self.img_height = 144
-        self.img_width = 256
+        self.img_height = 128+64
+        self.img_width = 128+64
         self.img_channels = 4  # RGBD
         self.rgb_channels = 3  # RGB通道數
         self.depth_channels = 1  # 深度通道數
@@ -58,14 +58,14 @@ class VisualFactoryTestNetwork(network_builder.NetworkBuilder.BaseNetwork):
         self.camera_mlps = nn.ModuleList()
         for _ in range(self.num_cameras):
             self.camera_mlps.append(nn.Sequential(
-                nn.Linear(self.single_camera_feature_size, 256),
+                nn.Linear(self.single_camera_feature_size, 128),
                 nn.ELU(),
-                nn.Linear(256, 128),
+                nn.Linear(128, 64),
                 nn.ELU()
             ))
 
         # 每個相機MLP的輸出大小
-        self.camera_mlp_out_size = 128
+        self.camera_mlp_out_size = 64
 
         # 所有相機特徵的總大小
         self.visual_out_size = self.camera_mlp_out_size * self.num_cameras
@@ -125,43 +125,29 @@ class VisualFactoryTestNetwork(network_builder.NetworkBuilder.BaseNetwork):
     def _build_rgb_encoder(self):
         """構建RGB影像的卷積編碼器"""
         return nn.Sequential(
-            # 第一層卷積
-            nn.Conv2d(self.rgb_channels, 32, kernel_size=8, stride=4, padding=2),
+            # 第一層卷積 - 減小kernel size以保留更多細節
+            nn.Conv2d(self.rgb_channels, 16, kernel_size=5, stride=2, padding=2),
             nn.ELU(),
             # 第二層卷積
-            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),
-            nn.ELU(),
-            # 第三層卷積
-            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
-            nn.ELU()
-        )
-
-    def _build_depth_encoder(self):
-        """構建深度影像的卷積編碼器"""
-        return nn.Sequential(
-            # 第一層卷積
-            nn.Conv2d(self.depth_channels, 16, kernel_size=8, stride=4, padding=2),
-            nn.ELU(),
-            # 第二層卷積
-            nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),
             nn.ELU(),
             # 第三層卷積
             nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
-            nn.ELU()
+            nn.ELU(),
         )
 
-    def _build_simple_conv_encoder(self):
-        """原始的RGBD編碼器 (保留以便向後兼容)"""
+    def _build_depth_encoder(self):
+        """構建深度影像的卷積編碼器 - 增強深度處理能力"""
         return nn.Sequential(
-            # 第一層卷積
-            nn.Conv2d(self.img_channels, 32, kernel_size=8, stride=4, padding=2),
+            # 第一層卷積 - 使用較小的kernel以保留精細深度變化
+            nn.Conv2d(self.depth_channels, 16, kernel_size=5, stride=2, padding=2),
             nn.ELU(),
             # 第二層卷積
-            nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),
             nn.ELU(),
             # 第三層卷積
-            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
-            nn.ELU()
+            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),  # 增加通道數
+            nn.ELU(),
         )
 
     def is_rnn(self):

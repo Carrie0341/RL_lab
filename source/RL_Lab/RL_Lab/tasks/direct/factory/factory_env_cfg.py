@@ -19,8 +19,8 @@ from .factory_tasks_cfg import ASSET_DIR, FactoryTask, PegInsert
 import torch
 import math
 
-CAMERA_WIDTH = 256
-CAMERA_HEIGHT = 144
+CAMERA_WIDTH = 128+64
+CAMERA_HEIGHT = 128+64
 
 # 定義多個相機視角
 #  1.(x正後 y正? z正上) 2.(x正左 y正後 z正上)
@@ -37,7 +37,7 @@ CAMERA_ROT = [tuple(camera_quat[i].tolist()) for i in range(len(CAMERA_POS))]  #
 
 
 CAMERA_EYE = (1.0, 1.0, 1.0)  # Viewer eye position
-num_envs = 32
+num_envs = 128
 
 # 每個相機的RGBD數據大小
 CAMERA_CHANNELS = 4  # RGBD
