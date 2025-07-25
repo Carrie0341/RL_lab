@@ -534,7 +534,7 @@ class FactoryEnv(DirectRLEnv):
         # Save reward details to file
         # Create a dictionary with all reward components
         reward_data = {
-            "epoch": self.counter.item() // 128 + 1,  # Epoch number
+            "epoch": self.counter // 128 + 1,  # Epoch number
             "total_reward": round(rew_buf.mean().item(), 4),
             "keypoint_dist": round(self.keypoint_dist.mean().item(), 4),
             "kp_baseline": round(rew_dict["kp_baseline"].mean().item(), 4),
