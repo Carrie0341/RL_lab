@@ -5,7 +5,7 @@
 
 import numpy as np
 import torch
-
+import time
 import carb
 import isaacsim.core.utils.torch as torch_utils
 
@@ -39,6 +39,8 @@ class FactoryEnv(DirectRLEnv):
         self.cfg_task = cfg.task
 
         self.counter = 0
+        
+        self.timestamp = int(time.time())
 
         super().__init__(cfg, render_mode, **kwargs)
 
@@ -517,6 +519,7 @@ class FactoryEnv(DirectRLEnv):
             self._get_curr_successes(success_threshold=self.cfg_task.engage_threshold, check_rot=False).clone().float()
         )
         rew_dict["curr_successes"] = curr_successes.clone().float()
+        rew_dict["kp_dist"] = self.keypoint_dist.clone().float()
 
         rew_buf = (
             rew_dict["kp_coarse"]
@@ -530,7 +533,7 @@ class FactoryEnv(DirectRLEnv):
 
         for rew_name, rew in rew_dict.items():
             self.extras[f"logs_rew_{rew_name}"] = rew.mean()
-        self.extras[f"logs_rew_kp_dist"] = self.keypoint_dist
+        # self.extras[f"logs_rew_kp_dist"] = self.keypoint_dist.mean().item()
         # Save reward details to file
         # Create a dictionary with all reward components
         reward_data = {
@@ -555,7 +558,7 @@ class FactoryEnv(DirectRLEnv):
         os.makedirs("reward_logs", exist_ok=True)
 
         # Append to the reward log file
-        with open("reward_logs/reward_components.jsonl", "a") as f:
+        with open(f"reward_logs/reward_components_{self.timestamp}.jsonl", "a") as f:
             # Write the reward data to the file
             f.write(json.dumps(reward_data) + "\n")
 
