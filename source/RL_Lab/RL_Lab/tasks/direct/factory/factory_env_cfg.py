@@ -19,17 +19,17 @@ from .factory_tasks_cfg import ASSET_DIR, FactoryTask, PegInsert
 import torch
 import math
 
-CAMERA_WIDTH = 128
-CAMERA_HEIGHT = 128
+CAMERA_WIDTH = 256
+CAMERA_HEIGHT = 256
 
 # 定義多個相機視角
 #  1.(x正後 y正? z正上) 2.(x正左 y正後 z正上)
-CAMERA_POS = [(.9, 0, .2), (0.45, .7, .4)]
+CAMERA_POS = [(1, 0, .2), (0.45, .8, .4)]
 
-roll = [torch.tensor(0), torch.tensor(0)] 
+roll = [torch.tensor(0), torch.tensor(0)]
 
 # 1.(值越大角度越低 => 數字小角度低) 2.(值越大角度越高 => 數字小角度高)
-pitch = [torch.tensor(2*math.pi / 12), torch.tensor(2*math.pi / 10)]
+pitch = [torch.tensor(2 * math.pi / 12), torch.tensor(2 * math.pi / 10)]
 
 yaw = [torch.tensor(math.pi), torch.tensor(math.pi / 2)]
 camera_quat = [quat_from_euler_xyz(roll[i], pitch[i], -yaw[i]) for i in range(len(CAMERA_POS))]

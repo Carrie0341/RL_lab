@@ -10,7 +10,7 @@ params:
     name: continuous_a2c_logstd
 
   network:
-    name: visual_factory_test  # 使用新的簡化測試模型
+    name: visual_factory_test
     separate: False
 
     space:
@@ -71,9 +71,9 @@ params:
   load_path: ""
 
   config:
-    name: Factory_Test  # 修改名稱以區分測試配置
+    name: Factory_Multi_Camera  # 修改名稱以區分測試配置
     device: cuda:0
-    full_experiment_name: visual_factory_multi_camera
+    full_experiment_name: visual_factory_multi_camera_v6
     env_name: rlgpu
     multi_gpu: False
     ppo: True
@@ -92,7 +92,7 @@ params:
     schedule_type: standard
     kl_threshold: 0.008
     score_to_win: 20000
-    max_epochs: 800
+    max_epochs: 1500
     save_best_after: 10
     save_frequency: 50
     print_stats: True
