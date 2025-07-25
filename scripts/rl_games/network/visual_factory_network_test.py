@@ -14,7 +14,7 @@ class VisualFactoryTestNetwork(network_builder.NetworkBuilder.BaseNetwork):
         self.device = kwargs.get('device', 'cuda:0')
 
         # 固定參數設置
-        self.num_seqs = 64  # 固定批次大小
+        self.num_seqs = 32  # 固定批次大小
         self.action_dim = 6  # 固定動作維度
 
         # 固定相機參數
