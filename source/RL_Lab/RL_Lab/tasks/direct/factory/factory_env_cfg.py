@@ -20,7 +20,7 @@ import torch
 import math
 
 CAMERA_WIDTH = 256
-CAMERA_HEIGHT = 256
+CAMERA_HEIGHT = 144
 
 # 定義多個相機視角
 #  1.(x正後 y正? z正上) 2.(x正左 y正後 z正上)
