@@ -10,7 +10,7 @@ params:
     name: continuous_a2c_logstd
 
   network:
-    name: visual_factory
+    name: visual_factory_test  # 使用新的簡化測試模型
     separate: False
 
     space:
@@ -24,36 +24,30 @@ params:
           val: 0
         fixed_sigma: False
     
-    # 視覺處理模塊 - 處理多相機RGBD圖像
+    # 簡化的視覺處理模塊配置
     visual_encoder:
       type: conv2d
       activation: elu
       initializer:
         name: orthogonal_initializer
-        gain: 1.4142 # sqrt(2)
+        gain: 1.4142
       regularizer:
         name: None
       convs:
         - filters: 32
           kernel_size: 8
           strides: 4
-          padding: 0
+          padding: 2
         - filters: 64
           kernel_size: 4
           strides: 2
-          padding: 0
+          padding: 1
         - filters: 64
           kernel_size: 3
           strides: 1
-          padding: 0
-      
-      # 啟用注意力機制以融合多相機數據
-      attention:
-        enabled: True
-        heads: 4
-        key_dim: 64
+          padding: 1
     
-    # 動作歷史處理模塊
+    # 簡化的動作處理模塊
     action_encoder:
       units: [64, 32]
       activation: elu
@@ -63,67 +57,57 @@ params:
       regularizer:
         name: None
     
-    # 融合後的MLP層
+    # 簡化的MLP層
     mlp:
       units: [512, 256, 128]
       activation: elu
-      d2rl: False
       initializer:
         name: orthogonal_initializer
         gain: 1.4142
       regularizer:
         name: None
 
-    rnn:
-      name: lstm
-      units: 1024
-      layers: 2
-      before_mlp: False  # 改為在CNN和MLP之間
-      concat_input: True
-      layer_norm: True
-
   load_checkpoint: False
   load_path: ""
 
   config:
-    name: Factory
+    name: Factory_Test  # 修改名稱以區分測試配置
     device: cuda:0
     full_experiment_name: visual_factory_multi_camera
     env_name: rlgpu
     multi_gpu: False
     ppo: True
     mixed_precision: True
-    normalize_input: False  # 圖像輸入已經在環境中歸一化
+    normalize_input: False
     normalize_value: True
     value_bootstrap: True
-    num_actors: 32  # 與factory_env_cfg.py中的num_envs匹配
+    num_actors: 32
     reward_shaper:
       scale_value: 1.0
     normalize_advantage: True
     gamma: 0.995
     tau: 0.95
-    learning_rate: 5.0e-5  # 降低學習率以適應複雜的視覺輸入
+    learning_rate: 5.0e-5
     lr_schedule: adaptive
     schedule_type: standard
     kl_threshold: 0.008
     score_to_win: 20000
-    max_epochs: 800  
+    max_epochs: 800
     save_best_after: 10
     save_frequency: 50
     print_stats: True
     grad_norm: 1.0
-    entropy_coef: 0.001  # 增加探索
+    entropy_coef: 0.001
     truncate_grads: True
     e_clip: 0.2
     horizon_length: 128
-    minibatch_size: 128  # 減小批次大小以適應GPU內存
-    mini_epochs: 6  # 增加每批次的訓練輪數
+    minibatch_size: 128
+    mini_epochs: 6
     critic_coef: 2
     clip_value: True
-    seq_length: 128
     bounds_loss_coef: 0.0001
 
-    # 中央價值網絡配置
+    # 簡化的中央價值網絡配置
     central_value_config:
       minibatch_size: 128
       mini_epochs: 6
@@ -137,24 +121,14 @@ params:
       network:
         name: actor_critic
         central_value: True
-        # 使用標準MLP處理狀態向量
         mlp:
-          units: [512, 256, 128]
+          units: [256, 128]
           activation: elu
-          d2rl: False
           initializer:
             name: orthogonal_initializer
             gain: 1.4142
           regularizer:
             name: None
-
-        rnn:
-          name: lstm
-          units: 1024
-          layers: 2
-          before_mlp: True
-          concat_input: True
-          layer_norm: True
 
     player:
       deterministic: False
