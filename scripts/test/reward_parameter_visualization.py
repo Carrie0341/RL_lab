@@ -3,16 +3,22 @@ import matplotlib.pyplot as plt
 import torch
 
 # 定義squashing函數
+
+
 def squashing_fn(x, a, b):
     return 1 / (np.exp(a * x) + b + np.exp(-a * x))
 
+
 # 設定參數
-keypoint_coef_baseline = [5, 4]  # General movement towards fixed object
-keypoint_coef_coarse = [50, 2]   # Movement to align the assets
-keypoint_coef_fine = [100, 0]    # Smaller distances for threading or last-inch insertion
+# keypoint_coef_baseline = [6, 4]  # General movement towards fixed object
+# keypoint_coef_coarse = [20, 2]   # Movement to align the assets
+# keypoint_coef_fine = [60, 0]    # Smaller distances for threading or last-inch insertion
+keypoint_coef_baseline: list = [2, 8]
+keypoint_coef_coarse: list = [50, 2]
+keypoint_coef_fine: list = [100, 0]
 
 # 創建keypoint_dist的範圍從0到0.1
-keypoint_dist = np.linspace(0, 0.5, 1000)
+keypoint_dist = np.linspace(0, 0.7, 1000)
 
 # 計算每個獎勵函數的值
 kp_baseline = squashing_fn(keypoint_dist, keypoint_coef_baseline[0], keypoint_coef_baseline[1])
@@ -23,7 +29,7 @@ kp_fine = squashing_fn(keypoint_dist, keypoint_coef_fine[0], keypoint_coef_fine[
 total_reward = kp_baseline + kp_coarse + kp_fine
 
 # 創建圖表
-plt.figure(figsize=(12, 8))
+plt.figure(figsize=(12, 10))
 
 # 繪製每個獎勵函數
 plt.plot(keypoint_dist, kp_baseline, label=f'kp_baseline (a={keypoint_coef_baseline[0]}, b={keypoint_coef_baseline[1]})', linewidth=2)
@@ -43,7 +49,7 @@ plt.title('Reward Components vs Keypoint Distance', fontsize=16)
 plt.legend(fontsize=12)
 
 # 設置y軸範圍以更好地顯示曲線
-plt.ylim(0, 3.0)
+plt.ylim(0, 1)
 
 # 添加垂直線來標記重要距離
 plt.axvline(x=0.01, color='gray', linestyle=':', alpha=0.7, label='Distance=0.01')
@@ -51,7 +57,7 @@ plt.axvline(x=0.02, color='gray', linestyle=':', alpha=0.7, label='Distance=0.02
 plt.axvline(x=0.05, color='gray', linestyle=':', alpha=0.7, label='Distance=0.05')
 
 # 添加詳細的分析表格
-distances = np.linspace(0, 0.5, 10)
+distances = np.linspace(0, 0.5, 5)
 table_data = []
 
 for dist in distances:
@@ -73,7 +79,7 @@ table_ax.set_fontsize(10)
 table_ax.scale(1, 1.5)
 
 # 調整圖表布局以適應表格
-plt.subplots_adjust(bottom=0.3)
+plt.subplots_adjust(bottom=0.4)
 
 # 保存圖表
 plt.savefig('reward_visualization.png', dpi=300, bbox_inches='tight')
