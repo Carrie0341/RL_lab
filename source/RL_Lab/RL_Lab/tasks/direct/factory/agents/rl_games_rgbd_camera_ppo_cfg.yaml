@@ -81,7 +81,7 @@ params:
     normalize_input: False
     normalize_value: True
     value_bootstrap: True
-    num_actors: 128
+    num_actors: 48
     reward_shaper:
       scale_value: 1.0
     normalize_advantage: True
@@ -109,7 +109,7 @@ params:
 
     # 簡化的中央價值網絡配置
     central_value_config:
-      minibatch_size: 512
+      minibatch_size: 128
       mini_epochs: 4
       learning_rate: 1e-4
       lr_schedule: adaptive
@@ -122,7 +122,7 @@ params:
         name: actor_critic
         central_value: True
         mlp:
-          units: [512, 128, 64]
+          units: [256, 128, 64]
           activation: elu
           initializer:
             name: orthogonal_initializer
