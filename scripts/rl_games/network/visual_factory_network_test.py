@@ -21,11 +21,11 @@ class VisualFactoryTestNetwork(network_builder.NetworkBuilder.BaseNetwork):
         self.img_height = 128
         self.img_width = 128
         self.img_channels = 4  # RGBD
-        self.num_cameras = 2  # 固定為2個相機
+        self.num_cameras = 3  # 固定為n個相機
 
         # 計算相機數據大小
         self.single_camera_size = self.img_height * self.img_width * self.img_channels
-        self.camera_size = self.single_camera_size * self.num_cameras  # 2個相機的總大小
+        self.camera_size = self.single_camera_size * self.num_cameras  # n個相機的總大小
         self.input_size = self.camera_size + self.action_dim
 
         # 固定使用卷積編碼器
@@ -107,7 +107,7 @@ class VisualFactoryTestNetwork(network_builder.NetworkBuilder.BaseNetwork):
             nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),
             nn.ELU(),
             # 第三層卷積
-            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),            
             nn.ELU()
         )
 

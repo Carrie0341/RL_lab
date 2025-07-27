@@ -19,22 +19,23 @@ from .factory_tasks_cfg import ASSET_DIR, FactoryTask, PegInsert
 import torch
 import math
 
+SAVE_DEBUG_IMAGES = False  # 是否保存調試圖像
+
 CAMERA_WIDTH = 128
 CAMERA_HEIGHT = 128
 
 # 定義多個相機視角
-#  1.(x正後 y正? z正上) 2.(x正左 y正後 z正上)
-CAMERA_POS = [(.9, 0, .2), (0.45, .7, .4)]
+#  1.(x正後 y正? z正上) 2.(x正左 y正後 z正上) 3.(x正右 y正前 z正上)
+CAMERA_POS = [(0.85, 0, .2), (0.6, 0.3, 0.25), (0.6, -0.3, 0.25)]
 
-roll = [torch.tensor(0), torch.tensor(0)] 
+roll = [torch.tensor(0), torch.tensor(0), torch.tensor(0)] 
 
-# 1.(值越大角度越低 => 數字小角度低) 2.(值越大角度越高 => 數字小角度高)
-pitch = [torch.tensor(2*math.pi / 12), torch.tensor(2*math.pi / 10)]
+# 1.(值越大角度越低 => 數字小角度低) 2.(值越大角度越高 => 數字小角度高) 3.(右側視角)
+pitch = [torch.tensor(2*math.pi / 12), torch.tensor(2*math.pi / 10), torch.tensor(2*math.pi / 10)]
 
-yaw = [torch.tensor(math.pi), torch.tensor(math.pi / 2)]
+yaw = [torch.tensor(math.pi), torch.tensor(math.pi / 2), torch.tensor(-math.pi / 2)]
 camera_quat = [quat_from_euler_xyz(roll[i], pitch[i], -yaw[i]) for i in range(len(CAMERA_POS))]
 CAMERA_ROT = [tuple(camera_quat[i].tolist()) for i in range(len(CAMERA_POS))]  # 轉換為元組格式 (w, x, y, z)
-
 
 CAMERA_EYE = (1.0, 1.0, 1.0)  # Viewer eye position
 num_envs = 64
@@ -231,56 +232,6 @@ class FactoryTaskPegInsertCfg(FactoryEnvCfg):
 
 
 @configclass
-class FactoryRGBCameraEnvCfg(FactoryEnvCfg):
-    """Configuration for Factory environment with RGB camera."""
-    task_name = "peg_insert_rgb_camera"
-    # camera
-    tiled_camera_front: TiledCameraCfg = TiledCameraCfg(
-        prim_path="/World/envs/env_.*/Camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS[0], rot=CAMERA_ROT[0], convention="world"),
-        data_types=["rgb"],
-        spawn=sim_utils.PinholeCameraCfg(
-            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
-        ),
-        width=CAMERA_WIDTH,
-        height=CAMERA_HEIGHT,
-    )
-    write_image_to_file = False
-
-    # spaces - 與 CartpoleRGBCameraEnvCfg 保持一致的格式
-    observation_space = [CAMERA_HEIGHT, CAMERA_WIDTH, 3]  # [height, width, channels]
-
-    # change viewer settings
-    viewer = ViewerCfg(eye=CAMERA_EYE)
-
-    # reduce number of environments for camera-based training
-    scene = InteractiveSceneCfg(num_envs=num_envs, env_spacing=2.0)
-
-    # Use PegInsert task configuration by default
-    task = PegInsert()
-
-
-@configclass
-class FactoryDepthCameraEnvCfg(FactoryRGBCameraEnvCfg):
-    """Configuration for Factory environment with depth camera."""
-    task_name = "peg_insert_depth_camera"
-    # camera
-    tiled_camera_front: TiledCameraCfg = TiledCameraCfg(
-        prim_path="/World/envs/env_.*/Camera",
-        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS[0], rot=CAMERA_ROT[0], convention="world"),
-        data_types=["depth"],
-        spawn=sim_utils.PinholeCameraCfg(
-            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
-        ),
-        width=CAMERA_WIDTH,
-        height=CAMERA_HEIGHT,
-    )
-
-    # spaces
-    observation_space = [CAMERA_HEIGHT, CAMERA_WIDTH, 1]  # [height, width, channels]
-
-
-@configclass
 class FactoryRGBDCameraEnvCfg(FactoryEnvCfg):
     """Configuration for Factory environment with multiple RGBD cameras."""
     task_name = "peg_insert_multi_rgbd_camera"
@@ -307,8 +258,18 @@ class FactoryRGBDCameraEnvCfg(FactoryEnvCfg):
         width=CAMERA_WIDTH,
         height=CAMERA_HEIGHT,
     )
+    tiled_camera_3: TiledCameraCfg = TiledCameraCfg(
+        prim_path="/World/envs/env_.*/Camera3",
+        offset=TiledCameraCfg.OffsetCfg(pos=CAMERA_POS[2], rot=CAMERA_ROT[2], convention="world"),
+        data_types=["rgb", "depth"],
+        spawn=sim_utils.PinholeCameraCfg(
+            focal_length=24.0, focus_distance=400.0, horizontal_aperture=20.955, clipping_range=(0.1, 10.0)
+        ),
+        width=CAMERA_WIDTH,
+        height=CAMERA_HEIGHT,
+    )
 
-    write_image_to_file = False
+    write_image_to_file = SAVE_DEBUG_IMAGES
 
     # 觀測空間為所有相機數據的總和 + 動作維度
     observation_space = TOTAL_OBS_SIZE

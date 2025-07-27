@@ -82,8 +82,6 @@ import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils.hydra import hydra_task_config
 
 import RL_Lab.tasks  # noqa: F401
-from network.visual_factory_network import VisualFactoryNetwork
-from network.visual_factory_network_simple import VisualFactorySimpleNetwork
 from network.visual_factory_network_test import VisualFactoryTestNetwork
 
 
