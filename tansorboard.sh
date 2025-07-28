@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 設定基本日誌目錄
-BASE_LOG_DIR="logs/rl_games/Factory_Multi_Camera/visual_factory_multi_camera_v5_2"
+BASE_LOG_DIR="logs/rl_games/Factory_Multi_Camera/visual_factory_multi_camera_v5_3"
 
 # 檢查目錄是否存在
 if [ ! -d "$BASE_LOG_DIR" ]; then
