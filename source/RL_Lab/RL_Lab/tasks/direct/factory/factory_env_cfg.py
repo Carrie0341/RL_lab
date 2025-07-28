@@ -28,10 +28,10 @@ CAMERA_HEIGHT = 128
 #  1.(x正後 y正? z正上) 2.(x正左 y正後 z正上) 3.(x正右 y正前 z正上)
 CAMERA_POS = [(0.85, 0, .2), (0.6, 0.3, 0.25), (0.6, -0.3, 0.25)]
 
-roll = [torch.tensor(0), torch.tensor(0), torch.tensor(0)] 
+roll = [torch.tensor(0), torch.tensor(0), torch.tensor(0)]
 
 # 1.(值越大角度越低 => 數字小角度低) 2.(值越大角度越高 => 數字小角度高) 3.(右側視角)
-pitch = [torch.tensor(2*math.pi / 12), torch.tensor(2*math.pi / 10), torch.tensor(2*math.pi / 10)]
+pitch = [torch.tensor(2 * math.pi / 12), torch.tensor(2 * math.pi / 10), torch.tensor(2 * math.pi / 10)]
 
 yaw = [torch.tensor(math.pi), torch.tensor(math.pi / 2), torch.tensor(-math.pi / 2)]
 camera_quat = [quat_from_euler_xyz(roll[i], pitch[i], -yaw[i]) for i in range(len(CAMERA_POS))]
@@ -228,7 +228,7 @@ class FactoryEnvCfg(DirectRLEnvCfg):
 class FactoryTaskPegInsertCfg(FactoryEnvCfg):
     task_name = "peg_insert"
     task = PegInsert()
-    episode_length_s = 10.0
+    episode_length_s = 15.0
 
 
 @configclass
