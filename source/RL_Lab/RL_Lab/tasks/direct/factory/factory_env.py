@@ -39,7 +39,7 @@ class FactoryEnv(DirectRLEnv):
         self.cfg_task = cfg.task
 
         self.counter = 0
-        
+
         self.timestamp = int(time.time())
 
         super().__init__(cfg, render_mode, **kwargs)
@@ -529,6 +529,7 @@ class FactoryEnv(DirectRLEnv):
             - rew_dict["action_grad_penalty"] * self.cfg_task.action_grad_penalty_scale
             + rew_dict["curr_engaged"]
             + rew_dict["curr_successes"]
+            - rew_dict["kp_dist"] * self.cfg_task.keypoint_dist_scale
         )
 
         for rew_name, rew in rew_dict.items():

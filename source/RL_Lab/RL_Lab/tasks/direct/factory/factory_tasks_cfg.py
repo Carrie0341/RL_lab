@@ -124,9 +124,11 @@ class PegInsert(FactoryTask):
     held_asset_rot_init: float = 0.0
 
     # Rewards
-    keypoint_coef_baseline: list = [6, 5]
-    keypoint_coef_coarse: list = [60, 2]
-    keypoint_coef_fine: list = [100, 0]
+    keypoint_coef_baseline: list = [6, 4]
+    keypoint_coef_coarse: list = [40, 2]
+    keypoint_coef_fine: list = [80, 0]
+
+    keypoint_dist_scale: float = 5
     # Fraction of socket height.
     success_threshold: float = 0.04
     engage_threshold: float = 0.9

@@ -73,7 +73,7 @@ params:
   config:
     name: Factory_Multi_Camera  # 修改名稱以區分測試配置
     device: cuda:0
-    full_experiment_name: visual_factory_multi_camera_v5_1
+    full_experiment_name: visual_factory_multi_camera_v5_2
     env_name: rlgpu
     multi_gpu: False
     ppo: True
