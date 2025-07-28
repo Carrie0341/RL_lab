@@ -489,8 +489,11 @@ class FactoryEnv(DirectRLEnv):
         nonzero_success_ids = self.ep_success_times.nonzero(as_tuple=False).squeeze(-1)
 
         if len(nonzero_success_ids) > 0:  # Only log for successful episodes.
-            success_times = self.ep_success_times[nonzero_success_ids].sum() / len(nonzero_success_ids)
-            self.extras["success_times"] = success_times
+            success_steps = self.ep_success_times[nonzero_success_ids].sum() / len(nonzero_success_ids)
+            # 将步数转换为秒数
+            success_times_seconds = success_steps * (self.physics_dt * self.cfg.decimation)
+
+            self.extras["success_times"] = success_times_seconds
 
         self.prev_actions = self.actions.clone()
         return rew_buf
@@ -519,7 +522,22 @@ class FactoryEnv(DirectRLEnv):
             self._get_curr_successes(success_threshold=self.cfg_task.engage_threshold, check_rot=False).clone().float()
         )
         rew_dict["curr_successes"] = curr_successes.clone().float()
+
+        # Add keypoint distance to reward dict for logging.
         rew_dict["kp_dist"] = self.keypoint_dist.clone().float()
+
+        # Calculate and add XY distance (planar distance) and Z distance (height difference)
+        # For XY distance, take the mean of all keypoints' XY distances
+        keypoints_held_xy = self.keypoints_held[:, :, 0:2]
+        keypoints_fixed_xy = self.keypoints_fixed[:, :, 0:2]
+        kp_xy_dist = torch.norm(keypoints_held_xy - keypoints_fixed_xy, p=2, dim=-1).mean(-1)
+        rew_dict["kp_XY_dist"] = kp_xy_dist.clone().float()
+
+        # For Z distance, take the mean of all keypoints' Z distances (absolute height difference)
+        keypoints_held_z = self.keypoints_held[:, :, 2]
+        keypoints_fixed_z = self.keypoints_fixed[:, :, 2]
+        kp_z_dist = torch.abs(keypoints_held_z - keypoints_fixed_z).mean(-1)
+        rew_dict["kp_Z_dist"] = kp_z_dist.clone().float()
 
         rew_buf = (
             rew_dict["kp_coarse"]
@@ -541,6 +559,8 @@ class FactoryEnv(DirectRLEnv):
             "epoch": self.counter // 128 + 1,  # Epoch number
             "total_reward": round(rew_buf.mean().item(), 4),
             "keypoint_dist": round(self.keypoint_dist.mean().item(), 4),
+            "keypoint_XY_dist": round(rew_dict["kp_XY_dist"].mean().item(), 4),
+            "keypoint_Z_dist": round(rew_dict["kp_Z_dist"].mean().item(), 4),
             "kp_baseline": round(rew_dict["kp_baseline"].mean().item(), 4),
             "kp_coarse": round(rew_dict["kp_coarse"].mean().item(), 4),
             "kp_fine": round(rew_dict["kp_fine"].mean().item(), 4),
@@ -567,7 +587,7 @@ class FactoryEnv(DirectRLEnv):
         for rew_name, rew in rew_dict.items():
             self.extras[f"logs_rew_{rew_name}"] = rew.mean()
         # Print detailed reward components
-        reward_str = f"Epoch {self.counter // 128 + 1}| Rewards: {rew_buf.mean().item():.4f} | keypoint_dist: {self.keypoint_dist.mean().item():.4f} | kp_baseline: {rew_dict['kp_baseline'].mean().item():.4f}, kp_coarse: {rew_dict['kp_coarse'].mean().item():.4f}, kp_fine: {rew_dict['kp_fine'].mean().item():.4f}, action_penalty: {(rew_dict['action_penalty'] * self.cfg_task.action_penalty_scale).mean().item():.4f}, action_grad_penalty: {(rew_dict['action_grad_penalty'] * self.cfg_task.action_grad_penalty_scale).mean().item():.4f}, engaged: {rew_dict['curr_engaged'].mean().item():.4f}, success: {rew_dict['curr_successes'].mean().item():.4f}"
+        reward_str = f"Epoch {self.counter // 128 + 1}| Rewards: {rew_buf.mean().item():.4f} | keypoint_dist: {self.keypoint_dist.mean().item():.4f}, keypoint_XY_dist: {rew_dict['kp_XY_dist'].mean().item():.4f}, keypoint_Z_dist: {rew_dict['kp_Z_dist'].mean().item():.4f} | kp_baseline: {rew_dict['kp_baseline'].mean().item():.4f} | kp_coarse: {rew_dict['kp_coarse'].mean().item():.4f} | kp_fine: {rew_dict['kp_fine'].mean().item():.4f}, engaged: {rew_dict['curr_engaged'].mean().item():.4f}, success: {rew_dict['curr_successes'].mean().item():.4f}"
         print(reward_str)
         return rew_buf
 
