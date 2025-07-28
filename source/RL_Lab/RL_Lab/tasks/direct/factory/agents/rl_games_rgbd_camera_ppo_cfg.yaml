@@ -92,7 +92,7 @@ params:
     schedule_type: standard
     kl_threshold: 0.008
     score_to_win: 20000
-    max_epochs: 1500
+    max_epochs: 2100
     save_best_after: 10
     save_frequency: 150
     print_stats: True
@@ -111,7 +111,7 @@ params:
     central_value_config:
       minibatch_size: 128
       mini_epochs: 6
-      learning_rate: 5e-5
+      learning_rate: 1.0e-4
       lr_schedule: adaptive
       kl_threshold: 0.008
       clip_value: True

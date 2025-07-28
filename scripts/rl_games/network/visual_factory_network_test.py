@@ -132,10 +132,10 @@ class VisualFactoryTestNetwork(network_builder.NetworkBuilder.BaseNetwork):
         """構建深度通道的專用卷積編碼器"""
         return nn.Sequential(
             # 第一層卷積 - 深度通道特化
-            nn.Conv2d(self.depth_channels, 16, kernel_size=8, stride=4, padding=2),
+            nn.Conv2d(self.depth_channels, 32, kernel_size=8, stride=4, padding=2),
             nn.ReLU(),
             # 第二層卷積
-            nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=1),
+            nn.Conv2d(32, 32, kernel_size=4, stride=2, padding=1),
             nn.ReLU(),
             # 第三層卷積
             nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
