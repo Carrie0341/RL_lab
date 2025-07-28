@@ -20,7 +20,9 @@ class VisualFactoryTestNetwork(network_builder.NetworkBuilder.BaseNetwork):
         # 固定相機參數
         self.img_height = 128
         self.img_width = 128
-        self.img_channels = 4  # RGBD
+        self.rgb_channels = 3  # RGB通道
+        self.depth_channels = 1  # 深度通道
+        self.img_channels = 4  # RGBD總通道
         self.num_cameras = 3  # 固定為n個相機
 
         # 計算相機數據大小
@@ -32,17 +34,30 @@ class VisualFactoryTestNetwork(network_builder.NetworkBuilder.BaseNetwork):
         self.use_linear_encoder = False
         self.is_multi_camera = True  # 設置為多相機模式
 
-        # 為每個相機構建視覺編碼器
-        self.camera_encoders = nn.ModuleList()
+        # 為每個相機構建RGB和深度編碼器
+        self.rgb_encoders = nn.ModuleList()
+        self.depth_encoders = nn.ModuleList()
+
         for _ in range(self.num_cameras):
-            self.camera_encoders.append(self._build_simple_conv_encoder())
+            self.rgb_encoders.append(self._build_rgb_encoder())
+            self.depth_encoders.append(self._build_depth_encoder())
 
         # 計算CNN輸出尺寸
         with torch.no_grad():
-            sample_input = torch.zeros((1, self.img_channels, self.img_height, self.img_width))
-            cnn_out = self.camera_encoders[0](sample_input)
-            self.cnn_out_shape = cnn_out.shape[1:]
-            self.single_encoder_out_size = np.prod(self.cnn_out_shape)
+            # 測試RGB編碼器輸出尺寸
+            rgb_sample = torch.zeros((1, self.rgb_channels, self.img_height, self.img_width))
+            rgb_out = self.rgb_encoders[0](rgb_sample)
+            self.rgb_out_shape = rgb_out.shape[1:]
+            self.rgb_encoder_out_size = np.prod(self.rgb_out_shape)
+
+            # 測試深度編碼器輸出尺寸
+            depth_sample = torch.zeros((1, self.depth_channels, self.img_height, self.img_width))
+            depth_out = self.depth_encoders[0](depth_sample)
+            self.depth_out_shape = depth_out.shape[1:]
+            self.depth_encoder_out_size = np.prod(self.depth_out_shape)
+
+            # 計算總輸出尺寸
+            self.single_encoder_out_size = self.rgb_encoder_out_size + self.depth_encoder_out_size
             self.visual_out_size = self.single_encoder_out_size * self.num_cameras
 
         # 動作編碼器 (固定結構)
@@ -64,7 +79,9 @@ class VisualFactoryTestNetwork(network_builder.NetworkBuilder.BaseNetwork):
 
         # 融合MLP層 (固定結構)
         self.mlp = nn.Sequential(
-            nn.Linear(combined_features_size, 256),
+            nn.Linear(combined_features_size, 512),  # 增加容量
+            nn.ELU(),
+            nn.Linear(512, 256),
             nn.ELU(),
             nn.Linear(256, 128),
             nn.ELU()
@@ -97,19 +114,45 @@ class VisualFactoryTestNetwork(network_builder.NetworkBuilder.BaseNetwork):
             nn.ELU()
         ).to(self.device)
 
-    def _build_simple_conv_encoder(self):
-        """構建簡化版卷積編碼器"""
+    def _build_rgb_encoder(self):
+        """構建RGB通道的卷積編碼器"""
         return nn.Sequential(
             # 第一層卷積
-            nn.Conv2d(self.img_channels, 32, kernel_size=8, stride=4, padding=2),
-            nn.ELU(),
+            nn.Conv2d(self.rgb_channels, 32, kernel_size=8, stride=4, padding=2),
+            nn.ReLU(),
             # 第二層卷積
             nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1),
-            nn.ELU(),
+            nn.ReLU(),
             # 第三層卷積
-            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),            
-            nn.ELU()
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU()
         )
+
+    def _build_depth_encoder(self):
+        """構建深度通道的專用卷積編碼器"""
+        return nn.Sequential(
+            # 第一層卷積 - 深度通道特化
+            nn.Conv2d(self.depth_channels, 16, kernel_size=8, stride=4, padding=2),
+            nn.ReLU(),
+            # 第二層卷積
+            nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(),
+            # 第三層卷積
+            nn.Conv2d(32, 32, kernel_size=3, stride=1, padding=1),
+            nn.ReLU()
+        )
+
+    def _preprocess_depth(self, depth):
+        """對深度數據進行預處理"""
+        # 對數變換增強深度對比度
+        log_depth = torch.log(torch.clamp(depth, min=1e-6) + 1.0)
+
+        # 歸一化
+        mean = log_depth.mean(dim=(2, 3), keepdim=True)
+        std = log_depth.std(dim=(2, 3), keepdim=True) + 1e-6
+        normalized_depth = (log_depth - mean) / std
+
+        return normalized_depth
 
     def is_rnn(self):
         """返回網絡是否使用RNN"""
@@ -121,7 +164,7 @@ class VisualFactoryTestNetwork(network_builder.NetworkBuilder.BaseNetwork):
 
     def forward(self, obs_tensor, rnn_states=None):
         """
-        處理觀測輸入，固定處理邏輯
+        處理觀測輸入，分別處理RGB和深度通道
         """
         # 從輸入中提取相機數據和前一步動作
         if isinstance(obs_tensor, dict):
@@ -152,19 +195,33 @@ class VisualFactoryTestNetwork(network_builder.NetworkBuilder.BaseNetwork):
                 end_idx = (i + 1) * self.single_camera_size
                 single_camera_data = camera_data[:, start_idx:end_idx]
 
-                # 重塑為[B, C, H, W]格式
+                # 重塑為[B, H, W, C]格式
                 single_camera_data = single_camera_data.reshape(batch_size, self.img_height, self.img_width, self.img_channels)
-                single_camera_data = single_camera_data.permute(0, 3, 1, 2)  # [B, C, H, W]
 
-                # 使用對應的編碼器處理
-                features = self.camera_encoders[i](single_camera_data)
-                features = features.reshape(batch_size, -1)  # 扁平化
-                all_visual_features.append(features)
+                # 分離RGB和深度通道
+                rgb_data = single_camera_data[..., :3].permute(0, 3, 1, 2)  # [B, 3, H, W]
+                depth_data = single_camera_data[..., 3:4].permute(0, 3, 1, 2)  # [B, 1, H, W]
+
+                # 預處理深度數據
+                processed_depth = self._preprocess_depth(depth_data)
+
+                # 分別使用RGB和深度編碼器處理
+                rgb_features = self.rgb_encoders[i](rgb_data)
+                depth_features = self.depth_encoders[i](processed_depth)
+
+                # 扁平化特徵
+                rgb_features = rgb_features.reshape(batch_size, -1)
+                depth_features = depth_features.reshape(batch_size, -1)
+
+                # 連接RGB和深度特徵
+                camera_features = torch.cat([rgb_features, depth_features], dim=1)
+                all_visual_features.append(camera_features)
 
             # 連接所有相機特徵
             visual_features = torch.cat(all_visual_features, dim=1)
 
-        except RuntimeError:
+        except RuntimeError as e:
+            print(f"使用備用編碼器，錯誤: {e}")
             # 使用備用編碼器
             visual_features = self.fallback_encoder(camera_data)
 
