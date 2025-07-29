@@ -67,13 +67,13 @@ params:
       regularizer:
         name: None
 
-  load_checkpoint: False
-  load_path: ""
+  load_checkpoint: True
+  load_path: "logs/rl_games/Factory_Multi_Camera/visual_factory_multi_camera_v5_2/nn/last_Factory_Multi_Camera_ep_1500_rew_214.95113.pth"
 
   config:
     name: Factory_Multi_Camera  # 修改名稱以區分測試配置
     device: cuda:0
-    full_experiment_name: visual_factory_multi_camera_v5_2
+    full_experiment_name: visual_factory_multi_camera_v5_2_continued
     env_name: rlgpu
     multi_gpu: False
     ppo: True
@@ -92,7 +92,7 @@ params:
     schedule_type: standard
     kl_threshold: 0.008
     score_to_win: 20000
-    max_epochs: 1500
+    max_epochs: 3000
     save_best_after: 10
     save_frequency: 150
     print_stats: True

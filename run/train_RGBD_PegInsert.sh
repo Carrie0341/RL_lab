@@ -18,9 +18,9 @@ elif [ -f /etc/os-release ] || [ -d /proc ]; then
     # Isaac Sim conda Env
     source ~/isaacsim/setup_conda_env.sh    
     # 使用headless模式訓練
-    python scripts/rl_games/train.py --task=Custom-Factory-PegInsert-RGBD-Camera-Direct-v0 --enable_cameras --headless --num_envs=64
+    python scripts/rl_games/train.py --task=Custom-Factory-PegInsert-RGBD-Camera-Direct-v0 --enable_cameras --headless --num_envs=64 --checkpoint="logs/rl_games/Factory_Multi_Camera/visual_factory_multi_camera_v5_2/nn/last_Factory_Multi_Camera_ep_1500_rew_214.95113.pth"
 else
     # 其他系統
     echo "Unknown operating system"
-    python scripts/rl_games/train.py --task=Custom-Factory-PegInsert-RGBD-Camera-Direct-v0 --enable_cameras --headless  --num_envs=64
+    python scripts/rl_games/train.py --task=Custom-Factory-PegInsert-RGBD-Camera-Direct-v0 --enable_cameras --headless  --num_envs=64 --checkpoint="logs/rl_games/Factory_Multi_Camera/visual_factory_multi_camera_v5_2/nn/last_Factory_Multi_Camera_ep_1500_rew_214.95113.pth"
 fi

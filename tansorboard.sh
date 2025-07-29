@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 設定基本日誌目錄
-BASE_LOG_DIR="logs/rl_games/Factory_Multi_Camera/visual_factory_multi_camera_v5_2"
+BASE_LOG_DIR="logs/rl_games/Factory_Multi_Camera/visual_factory_multi_camera_v5_2_continued"
 
 # 檢查目錄是否存在
 if [ ! -d "$BASE_LOG_DIR" ]; then
@@ -15,7 +15,7 @@ LATEST_EVENT=$(find $BASE_LOG_DIR -name "events.out.tfevents*" -type f -printf "
 if [ -z "$LATEST_EVENT" ]; then
     echo "找不到任何 events.out.tfevents 檔案，將使用整個日誌目錄"
     echo "啟動 TensorBoard..."
-    tensorboard --logdir=$BASE_LOG_DIR --port 6009
+    tensorboard --logdir=$BASE_LOG_DIR --port 6007
 else
     # 取得包含最新事件檔案的目錄
     EVENT_DIR=$(dirname "$LATEST_EVENT")
@@ -24,5 +24,5 @@ else
     echo "啟動 TensorBoard..."
     
     # 使用包含最新事件檔案的目錄啟動 TensorBoard
-    tensorboard --logdir=$EVENT_DIR --port 6009
+    tensorboard --logdir=$EVENT_DIR --port 6007
 fi
